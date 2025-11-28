@@ -177,12 +177,13 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
             <div
               // biome-ignore lint/suspicious/noArrayIndexKey: History items have no unique ID
               key={i}
-              className={`animate-fade-in mb-1 ${item.type === "error"
+              className={`animate-fade-in mb-1 ${
+                item.type === "error"
                   ? "text-red-500 pl-6"
                   : item.type === "output"
                     ? "text-ide-muted italic pl-6"
                     : ""
-                }`}
+              }`}
             >
               {item.type === "command" ? (
                 <>
@@ -228,8 +229,9 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
                     <button
                       type="button"
                       key={cmd}
-                      className={`w-full px-3 py-2 cursor-pointer flex items-center justify-between text-[11px] group transition-colors text-left ${index === selectedSuggestionIndex ? "bg-ide-selection" : "bg-transparent"
-                        }`}
+                      className={`w-full px-3 py-2 cursor-pointer flex items-center justify-between text-[11px] group transition-colors text-left ${
+                        index === selectedSuggestionIndex ? "bg-ide-selection" : "bg-transparent"
+                      }`}
                       onClick={() => {
                         onCommand(cmd)
                         setInput("")

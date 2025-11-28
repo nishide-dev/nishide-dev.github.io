@@ -133,24 +133,38 @@ export function EditorArea({
               <span className="mr-2 opacity-50">nishide-portfolio</span>
               <ChevronRight size={10} className="mr-2 opacity-50" />
               <div className="flex items-center">
-                {activeFile.path.split(">").map((p, i, arr) => {
-                  const isLast = i === arr.length - 1
-                  return (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: Breadcrumbs have no unique ID
-                    <div key={i} className="flex items-center">
-                      <span
-                        className={
-                          isLast
-                            ? "text-ide-text font-medium"
-                            : "hover:text-ide-text cursor-pointer transition-colors"
-                        }
-                      >
-                        {p.trim()}
-                      </span>
-                      {!isLast && <ChevronRight size={10} className="mx-2 opacity-50" />}
-                    </div>
-                  )
-                })}
+                {(() => {
+                  const segments = activeFile.id.split("/")
+                  return segments.map((segment, i) => {
+                    const isLast = i === segments.length - 1
+                    const path = segments.slice(0, i + 1).join("/")
+                    const file = Object.values(fileSystem).find((f) => f.id === path)
+                    const isClickable = file && !isLast
+
+                    return (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: Breadcrumbs have no unique ID
+                      <div key={i} className="flex items-center">
+                        <span
+                          className={
+                            isLast
+                              ? "text-ide-text font-medium"
+                              : isClickable
+                                ? "hover:text-ide-text cursor-pointer transition-colors"
+                                : "opacity-50"
+                          }
+                          onClick={() => {
+                            if (isClickable) {
+                              onOpenFile(path)
+                            }
+                          }}
+                        >
+                          {file ? file.filename : segment}
+                        </span>
+                        {!isLast && <ChevronRight size={10} className="mx-2 opacity-50" />}
+                      </div>
+                    )
+                  })
+                })()}
               </div>
               <div className="ml-auto flex items-center gap-3">
                 <span className="text-[10px] uppercase font-bold tracking-wider opacity-50">
