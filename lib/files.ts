@@ -24,7 +24,7 @@ export async function getAllFiles(): Promise<Record<string, FileData>> {
     fileSystem[fileId] = {
       id: data.id || id.replace(/^\//, ""),
       filename: data.filename || path.basename(fullPath),
-      path: `docs > ${data.filename || path.basename(fullPath)}`,
+      path: `${data.filename || path.basename(fullPath)}`,
       icon: data.icon || "file-text",
       pyModule: data.pyModule || "module",
       lang: (data.lang as FileData["lang"]) || (isMdx ? "mdx" : "markdown"),

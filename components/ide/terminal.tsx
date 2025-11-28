@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronRight, Columns } from "lucide-react"
+import { ChevronRight, Columns, Plus, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { FileData } from "@/lib/data"
 
@@ -43,46 +43,58 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
     const val = e.target.value
     setInput(val)
     if (val.startsWith("/")) {
-      const matches = Object.keys(fileSystem).filter((cmd) => cmd.startsWith(val))
+      const matches = Object.keys(fileSystem)
+        .filter((cmd) => cmd.startsWith(val))
+        .sort((a, b) => a.length - b.length || a.localeCompare(b))
       setSuggestions(matches)
-      setSelectedSuggestionIndex(0)
+      setSelectedSuggestionIndex(-1)
     } else {
       setSuggestions([])
       setSelectedSuggestionIndex(-1)
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (suggestions.length > 0) {
-      if (e.key === "ArrowDown") {
+  const handleSuggestionNavigation = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    switch (e.key) {
+      case "ArrowDown":
         e.preventDefault()
         setSelectedSuggestionIndex((prev) => (prev + 1) % suggestions.length)
-        return
-      }
-      if (e.key === "ArrowUp") {
+        return true
+      case "ArrowUp":
         e.preventDefault()
         setSelectedSuggestionIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length)
-        return
-      }
-      if (e.key === "Enter") {
-        e.preventDefault()
+        return true
+      case "Enter":
         if (selectedSuggestionIndex >= 0) {
+          e.preventDefault()
           const cmd = suggestions[selectedSuggestionIndex]
           onCommand(cmd)
           setInput("")
           setSuggestions([])
-          return
+          return true
         }
-      }
-      if (e.key === "Tab") {
+        break
+      case "Tab":
         e.preventDefault()
         if (selectedSuggestionIndex >= 0) {
           setInput(suggestions[selectedSuggestionIndex])
         } else if (suggestions.length > 0) {
           setInput(suggestions[0])
         }
-        return
-      }
+        return true
+    }
+    return false
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (input === "" && e.key === "Tab") {
+      e.preventDefault()
+      setInput("/")
+      return
+    }
+
+    if (suggestions.length > 0) {
+      if (handleSuggestionNavigation(e)) return
     }
 
     if (e.key === "Enter") {
@@ -111,10 +123,7 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
           </span>
         </div>
         <div className="flex gap-3 text-ide-muted items-center">
-          <ChevronRight
-            size={14}
-            className="hover:text-ide-text cursor-pointer transition-colors"
-          />
+          <Plus size={14} className="hover:text-ide-text cursor-pointer transition-colors" />
           <button
             type="button"
             onClick={onClear}
@@ -123,15 +132,17 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
           >
             <Columns size={14} />
           </button>
-          <ChevronRight
-            size={14}
-            className="hover:text-ide-text cursor-pointer transition-colors"
-          />
+          <X size={14} className="hover:text-ide-text cursor-pointer transition-colors" />
         </div>
       </div>
 
       {/* Terminal Body */}
-      <div className="flex-1 flex flex-col overflow-hidden relative p-4 font-mono">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: Terminal body click focus */}
+      <div
+        className="flex-1 flex flex-col overflow-hidden relative p-4 font-mono cursor-text"
+        onClick={() => inputRef.current?.focus()}
+        onKeyDown={() => inputRef.current?.focus()}
+      >
         {/* Decor: Claude Code Box */}
         <div className="absolute top-4 right-4 hidden md:block z-10 pointer-events-none opacity-80">
           <div className="border border-ide-accent/20 bg-ide-accent/5 rounded p-3 flex gap-3 max-w-xs shadow-sm">
