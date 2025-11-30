@@ -1,7 +1,9 @@
 import fs from "node:fs"
 import path from "node:path"
 import matter from "gray-matter"
-import { serialize } from "next-mdx-remote/serialize"
+import { compileMDX } from "next-mdx-remote/rsc"
+import { IconList } from "@/components/mdx/icon-list"
+import { ProjectGrid } from "@/components/mdx/project-grid"
 import type { FileData } from "./data"
 
 const contentDirectory = path.join(process.cwd(), "content")
@@ -16,9 +18,19 @@ export async function getAllFiles(): Promise<Record<string, FileData>> {
     const fileId = data.id ? `/${data.id}` : id
     const isMdx = fullPath.endsWith(".mdx")
 
-    let serializedContent: FileData["serializedContent"]
+    let renderedContent: React.ReactNode
     if (isMdx) {
-      serializedContent = await serialize(content)
+      const { content: compiled } = await compileMDX({
+        source: content,
+        components: {
+          IconList,
+          ProjectGrid,
+        },
+        options: {
+          parseFrontmatter: true,
+        },
+      })
+      renderedContent = compiled
     }
 
     fileSystem[fileId] = {
@@ -29,7 +41,7 @@ export async function getAllFiles(): Promise<Record<string, FileData>> {
       pyModule: data.pyModule || "module",
       lang: (data.lang as FileData["lang"]) || (isMdx ? "mdx" : "markdown"),
       content: content,
-      serializedContent,
+      renderedContent,
       thumbnail: data.thumbnail,
       tags: data.tags,
     }

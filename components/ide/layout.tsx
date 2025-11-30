@@ -14,8 +14,8 @@ interface IdeLayoutProps {
 
 export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
   const [fileSystem] = useState(initialFileSystem)
-  const [openTabs, setOpenTabs] = useState<string[]>([])
-  const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  const [openTabs, setOpenTabs] = useState<string[]>(["about"])
+  const [activeTabId, setActiveTabId] = useState<string | null>("about")
   const [history, setHistory] = useState<
     { type: "command" | "output" | "error"; content: string }[]
   >([])

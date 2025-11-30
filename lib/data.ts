@@ -1,4 +1,5 @@
 import type { MDXRemoteSerializeResult } from "next-mdx-remote"
+import type React from "react"
 
 export type FileData = {
   id: string
@@ -11,6 +12,7 @@ export type FileData = {
   serializedContent?: MDXRemoteSerializeResult
   thumbnail?: string
   tags?: string[]
+  renderedContent?: React.ReactNode
 }
 
 // Initial empty state or default data if needed

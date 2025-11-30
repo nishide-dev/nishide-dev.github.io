@@ -1,8 +1,8 @@
 "use client"
 
 import { Briefcase, ChevronRight, Columns, Mail, Microscope, UserCircle, X } from "lucide-react"
-import { MDXRemote } from "next-mdx-remote"
 import ReactMarkdown from "react-markdown"
+import { IdeProvider } from "@/components/ide/ide-context"
 import { IconList } from "@/components/mdx/icon-list"
 import { ProjectGrid } from "@/components/mdx/project-grid"
 import type { FileData } from "@/lib/data"
@@ -64,190 +64,185 @@ export function EditorArea({
     : null
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 relative">
-      {/* Tabs Bar */}
-      <div className="h-9 bg-ide-panel border-b border-ide-border flex items-end px-0 select-none overflow-x-auto">
-        {openTabs.map((tabId) => {
-          const file = Object.values(fileSystem).find((f) => f.id === tabId)
-          if (!file) return null
-          const isActive = tabId === activeTabId
-          const Icon = IconMap[file.icon] || UserCircle
+    <IdeProvider value={{ onOpenFile, fileSystem }}>
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        {/* Tabs Bar */}
+        <div className="h-9 bg-ide-panel border-b border-ide-border flex items-end px-0 select-none overflow-x-auto">
+          {openTabs.map((tabId) => {
+            const file = Object.values(fileSystem).find((f) => f.id === tabId)
+            if (!file) return null
+            const isActive = tabId === activeTabId
+            const Icon = IconMap[file.icon] || UserCircle
 
-          return (
-            <button
-              type="button"
-              key={tabId}
-              onClick={() => onTabClick(tabId)}
-              className={`h-full px-4 flex items-center gap-2 text-xs cursor-pointer select-none min-w-fit border-r border-ide-border group bg-transparent border-none ${
-                isActive
-                  ? "bg-ide-bg text-ide-text border-t-2 border-t-ide-accent font-medium"
-                  : "bg-ide-panel text-ide-muted hover:bg-ide-bg/50 transition-colors"
-              }`}
-            >
-              <Icon size={14} className={isActive ? "text-ide-accent" : "text-ide-muted"} />
-              <span>{file.filename}</span>
-              <X
-                size={12}
-                className={`ml-2 p-0.5 rounded-md hover:bg-ide-border/50 ${
-                  isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100 transition-opacity"
+            return (
+              <button
+                type="button"
+                key={tabId}
+                onClick={() => onTabClick(tabId)}
+                className={`h-full px-4 flex items-center gap-2 text-xs cursor-pointer select-none min-w-fit border-r border-ide-border group bg-transparent border-none ${
+                  isActive
+                    ? "bg-ide-bg text-ide-text border-t-2 border-t-ide-accent font-medium"
+                    : "bg-ide-panel text-ide-muted hover:bg-ide-bg/50 transition-colors"
                 }`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onTabClose(tabId)
-                }}
-              />
-            </button>
-          )
-        })}
-      </div>
+              >
+                <Icon size={14} className={isActive ? "text-ide-accent" : "text-ide-muted"} />
+                <span>{file.filename}</span>
+                <X
+                  size={12}
+                  className={`ml-2 p-0.5 rounded-md hover:bg-ide-border/50 ${
+                    isActive
+                      ? "opacity-100"
+                      : "opacity-0 group-hover:opacity-100 transition-opacity"
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onTabClose(tabId)
+                  }}
+                />
+              </button>
+            )
+          })}
+        </div>
 
-      {/* Editor Content Wrapper */}
-      <div className="flex-1 relative bg-ide-bg overflow-hidden flex flex-col">
-        {!activeFile ? (
-          /* Empty State */
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-ide-muted opacity-100 transition-opacity duration-300 z-10 bg-ide-bg">
-            <div className="w-20 h-20 mb-6 text-ide-accent opacity-40">
-              <img
-                src="/github-avatar.png"
-                alt="Zen Mode Logo"
-                className="w-full h-full rounded-full object-cover"
-              />
-            </div>
-            <p className="text-sm tracking-[0.2em] uppercase opacity-80 font-bold text-ide-accent">
-              RYUSEI NISHIDE
-            </p>
-            <a
-              href="https://github.com/nishide-dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[10px] mt-3 opacity-60 font-mono hover:text-ide-text hover:opacity-100 transition-all hover:underline"
-            >
-              @nishide-dev
-            </a>
-            <p className="text-[10px] mt-1 opacity-50 font-mono">Type /about to start</p>
-          </div>
-        ) : (
-          /* Document Container */
-          <div className="absolute inset-0 flex flex-col z-20 bg-ide-bg animate-fade-in">
-            {/* Breadcrumbs */}
-            <div className="h-8 flex items-center px-4 text-xs text-ide-muted border-b border-ide-border/50 shrink-0 bg-ide-bg select-none font-mono">
-              <span className="mr-2 opacity-50">nishide-portfolio</span>
-              <ChevronRight size={10} className="mr-2 opacity-50" />
-              <div className="flex items-center">
-                {(() => {
-                  const segments = activeFile.id.split("/")
-                  return segments.map((segment, i) => {
-                    const isLast = i === segments.length - 1
-                    const path = segments.slice(0, i + 1).join("/")
-                    const file = Object.values(fileSystem).find((f) => f.id === path)
-                    const isClickable = file && !isLast
-
-                    return (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: Breadcrumbs have no unique ID
-                      <div key={i} className="flex items-center">
-                        <button
-                          type="button"
-                          className={`flex items-center bg-transparent border-none p-0 ${
-                            isLast
-                              ? "text-ide-text font-medium cursor-default"
-                              : isClickable
-                                ? "hover:text-ide-text cursor-pointer transition-colors"
-                                : "opacity-50 cursor-default"
-                          }`}
-                          onClick={() => {
-                            if (isClickable) {
-                              onOpenFile(path)
-                            }
-                          }}
-                        >
-                          {file ? file.filename : segment}
-                        </button>
-                        {!isLast && <ChevronRight size={10} className="mx-2 opacity-50" />}
-                      </div>
-                    )
-                  })
-                })()}
+        {/* Editor Content Wrapper */}
+        <div className="flex-1 relative bg-ide-bg overflow-hidden flex flex-col">
+          {!activeFile ? (
+            /* Empty State */
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-ide-muted opacity-100 transition-opacity duration-300 z-10 bg-ide-bg">
+              <div className="w-20 h-20 mb-6 text-ide-accent opacity-40">
+                <img
+                  src="/github-avatar.png"
+                  alt="Zen Mode Logo"
+                  className="w-full h-full rounded-full object-cover"
+                />
               </div>
-              <div className="ml-auto flex items-center gap-3">
-                <span className="text-[10px] uppercase font-bold tracking-wider opacity-50">
-                  Preview
-                </span>
-                <Columns size={14} className="text-ide-muted hover:text-ide-text cursor-pointer" />
-              </div>
+              <p className="text-sm tracking-[0.2em] uppercase opacity-80 font-bold text-ide-accent">
+                RYUSEI NISHIDE
+              </p>
+              <a
+                href="https://github.com/nishide-dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] mt-3 opacity-60 font-mono hover:text-ide-text hover:opacity-100 transition-all hover:underline"
+              >
+                @nishide-dev
+              </a>
+              <p className="text-[10px] mt-1 opacity-50 font-mono">Type /about to start</p>
             </div>
+          ) : (
+            /* Document Container */
+            <div className="absolute inset-0 flex flex-col z-20 bg-ide-bg animate-fade-in">
+              {/* Breadcrumbs */}
+              <div className="h-8 flex items-center px-4 text-xs text-ide-muted border-b border-ide-border/50 shrink-0 bg-ide-bg select-none font-mono">
+                <span className="mr-2 opacity-50">nishide-portfolio</span>
+                <ChevronRight size={10} className="mr-2 opacity-50" />
+                <div className="flex items-center">
+                  {(() => {
+                    const segments = activeFile.id.split("/")
+                    return segments.map((segment, i) => {
+                      const isLast = i === segments.length - 1
+                      const path = segments.slice(0, i + 1).join("/")
+                      const file = Object.values(fileSystem).find((f) => f.id === path)
+                      const isClickable = file && !isLast
 
-            {/* Markdown Body */}
-            <div className="flex-1 overflow-auto p-8 md:p-12">
-              <div className="markdown-body max-w-3xl mx-auto">
-                {activeFile.lang === "mdx" && activeFile.serializedContent ? (
-                  <MDXRemote
-                    {...activeFile.serializedContent}
-                    components={{
-                      ProjectGrid: (props) => {
-                        // Pass projects from fileSystem to ProjectGrid
-                        // We filter for projects in 'works/' but exclude the index 'works' itself if needed
-                        const projects = Object.values(fileSystem).filter(
-                          (f) => f.id.startsWith("works/") && f.id !== "works"
-                        )
-                        return (
-                          <ProjectGrid {...props} projects={projects} onOpenFile={onOpenFile} />
-                        )
-                      },
-                      IconList: IconList,
-                    }}
-                  />
-                ) : (
-                  <ReactMarkdown
-                    components={{
-                      a: ({ href, children }) => {
-                        const isInternal = href?.startsWith("/")
-                        return (
-                          <a
-                            href={href}
-                            onClick={(e) => {
-                              if (isInternal && href) {
-                                e.preventDefault()
-                                onOpenFile(href)
+                      return (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: Breadcrumbs have no unique ID
+                        <div key={i} className="flex items-center">
+                          <button
+                            type="button"
+                            className={`flex items-center bg-transparent border-none p-0 ${
+                              isLast
+                                ? "text-ide-text font-medium cursor-default"
+                                : isClickable
+                                  ? "hover:text-ide-text cursor-pointer transition-colors"
+                                  : "opacity-50 cursor-default"
+                            }`}
+                            onClick={() => {
+                              if (isClickable) {
+                                onOpenFile(path)
                               }
                             }}
-                            target={isInternal ? undefined : "_blank"}
-                            rel={isInternal ? undefined : "noopener noreferrer"}
                           >
-                            {children}
-                          </a>
-                        )
-                      },
-                      code: ({ className, children, ...props }) => {
-                        const match = /language-(\w+)/.exec(className || "")
-                        const lang = match ? match[1] : ""
-                        if (match) {
+                            {file ? file.filename : segment}
+                          </button>
+                          {!isLast && <ChevronRight size={10} className="mx-2 opacity-50" />}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+                <div className="ml-auto flex items-center gap-3">
+                  <span className="text-[10px] uppercase font-bold tracking-wider opacity-50">
+                    Preview
+                  </span>
+                  <Columns
+                    size={14}
+                    className="text-ide-muted hover:text-ide-text cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Markdown Body */}
+              <div className="flex-1 overflow-auto p-8 md:p-12">
+                <div className="markdown-body max-w-3xl mx-auto">
+                  {activeFile.lang === "mdx" && activeFile.renderedContent ? (
+                    activeFile.renderedContent
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        a: ({ href, children }) => {
+                          const isInternal = href?.startsWith("/")
                           return (
-                            <code
-                              className={className}
-                              // biome-ignore lint/security/noDangerouslySetInnerHtml: Syntax highlighting
-                              dangerouslySetInnerHTML={{
-                                __html: syntaxHighlight(String(children).replace(/\n$/, ""), lang),
+                            <a
+                              href={href}
+                              onClick={(e) => {
+                                if (isInternal && href) {
+                                  e.preventDefault()
+                                  onOpenFile(href)
+                                }
                               }}
-                              {...props}
-                            />
+                              target={isInternal ? undefined : "_blank"}
+                              rel={isInternal ? undefined : "noopener noreferrer"}
+                            >
+                              {children}
+                            </a>
                           )
-                        }
-                        return (
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        )
-                      },
-                    }}
-                  >
-                    {activeFile.content}
-                  </ReactMarkdown>
-                )}
+                        },
+                        code: ({ className, children, ...props }) => {
+                          const match = /language-(\w+)/.exec(className || "")
+                          const lang = match ? match[1] : ""
+                          if (match) {
+                            return (
+                              <code
+                                className={className}
+                                // biome-ignore lint/security/noDangerouslySetInnerHtml: Syntax highlighting
+                                dangerouslySetInnerHTML={{
+                                  __html: syntaxHighlight(
+                                    String(children).replace(/\n$/, ""),
+                                    lang
+                                  ),
+                                }}
+                                {...props}
+                              />
+                            )
+                          }
+                          return (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          )
+                        },
+                      }}
+                    >
+                      {activeFile.content}
+                    </ReactMarkdown>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </IdeProvider>
   )
 }
