@@ -1,7 +1,7 @@
 "use client"
 
 import { Columns, Plus, X } from "lucide-react"
-import Image from "next/image"
+
 import { useEffect, useRef, useState } from "react"
 import type { FileData } from "@/lib/data"
 
@@ -144,21 +144,6 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
         onClick={() => inputRef.current?.focus()}
         onKeyDown={() => inputRef.current?.focus()}
       >
-        {/* Decor: Claude Code Box */}
-        <div className="absolute top-4 right-4 hidden md:block z-10 pointer-events-none opacity-80">
-          <div className="border border-ide-accent/20 bg-ide-accent/5 rounded p-3 flex gap-3 max-w-xs shadow-sm">
-            <div className="w-8 h-8 bg-ide-accent/10 rounded flex items-center justify-center text-ide-accent text-lg font-bold overflow-hidden">
-              <Image src="/github-avatar.png" alt="Avatar" fill className="object-cover" />
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-ide-accent uppercase tracking-wide">
-                Ryusei Nishide v2025
-              </div>
-              <div className="text-[10px] text-ide-text mt-0.5">Python environment active.</div>
-            </div>
-          </div>
-        </div>
-
         {/* History */}
         <div
           ref={historyBoxRef}
@@ -178,13 +163,12 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
             <div
               // biome-ignore lint/suspicious/noArrayIndexKey: History items have no unique ID
               key={i}
-              className={`animate-fade-in mb-1 ${
-                item.type === "error"
+              className={`animate-fade-in mb-1 ${item.type === "error"
                   ? "text-red-500 pl-6"
                   : item.type === "output"
                     ? "text-ide-muted italic pl-6"
                     : ""
-              }`}
+                }`}
             >
               {item.type === "command" ? (
                 <>
@@ -230,9 +214,8 @@ export function Terminal({ fileSystem, onCommand, onClear, history }: TerminalPr
                     <button
                       type="button"
                       key={cmd}
-                      className={`w-full px-3 py-2 cursor-pointer flex items-center justify-between text-[11px] group transition-colors text-left ${
-                        index === selectedSuggestionIndex ? "bg-ide-selection" : "bg-transparent"
-                      }`}
+                      className={`w-full px-3 py-2 cursor-pointer flex items-center justify-between text-[11px] group transition-colors text-left ${index === selectedSuggestionIndex ? "bg-ide-selection" : "bg-transparent"
+                        }`}
                       onClick={() => {
                         onCommand(cmd)
                         setInput("")

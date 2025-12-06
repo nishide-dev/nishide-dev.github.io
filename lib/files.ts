@@ -39,7 +39,7 @@ export async function getAllFiles(): Promise<Record<string, FileData>> {
       path: `${data.filename || path.basename(fullPath)}`,
       icon: data.icon || "file-text",
       pyModule: data.pyModule || "module",
-      lang: (data.lang as FileData["lang"]) || (isMdx ? "mdx" : "markdown"),
+      lang: isMdx ? "mdx" : "markdown",
       content: content,
       renderedContent,
       thumbnail: data.thumbnail,

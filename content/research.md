@@ -1,9 +1,9 @@
 ---
 id: research
-filename: 研究.py
+filename: 研究
 icon: microscope
 pyModule: research_lab
-lang: python
+
 ---
 
 # Research Interests

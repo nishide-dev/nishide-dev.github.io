@@ -7,7 +7,7 @@ export type FileData = {
   path: string
   icon: string
   pyModule: string
-  lang: "markdown" | "python" | "javascript" | "json" | "typescript" | "mdx"
+  lang: "markdown" | "mdx"
   content: string
   serializedContent?: MDXRemoteSerializeResult
   thumbnail?: string

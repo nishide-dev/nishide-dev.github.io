@@ -1,9 +1,9 @@
 ---
 id: works/microbase
-filename: microbase.tsx
+filename: microbase
 icon: briefcase
 pyModule: works.microbase
-lang: javascript
+
 ---
 
 # Project LINKS (Microbase Inc.)

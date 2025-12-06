@@ -1,9 +1,9 @@
 ---
 id: works/resq-link
-filename: resq-link.tsx
+filename: resq-link
 icon: briefcase
 pyModule: works.resq_link
-lang: javascript
+
 tags: ["JavaScript", "Edge AI"]
 ---
 
