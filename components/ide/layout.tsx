@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { CommandPalette } from "@/components/ide/command-palette"
 import type { FileData } from "@/lib/data"
 import { ActivityBar } from "./activity-bar"
 import { EditorArea } from "./editor-area"
+import { IdeProvider } from "./ide-context"
 import { StatusBar } from "./status-bar"
-import { Terminal } from "./terminal"
 import { TitleBar } from "./title-bar"
 
 interface IdeLayoutProps {
@@ -16,9 +17,21 @@ export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
   const [fileSystem] = useState(initialFileSystem)
   const [openTabs, setOpenTabs] = useState<string[]>(["about"])
   const [activeTabId, setActiveTabId] = useState<string | null>("about")
-  const [history, setHistory] = useState<
-    { type: "command" | "output" | "error"; content: string }[]
-  >([])
+  const [isPaletteOpen, setPaletteOpen] = useState(false)
+
+  // Toggle palette with Cmd+K or Ctrl+K
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+          e.preventDefault()
+          setPaletteOpen((prev) => !prev)
+        }
+      }
+      window.addEventListener("keydown", handleKeyDown)
+      return () => window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [])
 
   const activeFile = activeTabId
     ? Object.values(fileSystem).find((f) => f.id === activeTabId)
@@ -40,46 +53,6 @@ export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
     return false
   }
 
-  const handleCommand = (cmd: string) => {
-    setHistory((prev) => [...prev, { type: "command", content: cmd }])
-
-    if (cmd === "/clear") {
-      setHistory([])
-      return
-    }
-
-    if (cmd === "/close") {
-      setOpenTabs([])
-      setActiveTabId(null)
-      return
-    }
-
-    // Try to find file by command (e.g. /about) or by ID
-    const fileKey = Object.keys(fileSystem).find((key) => key === cmd || key === `/${cmd}`)
-    if (fileKey) {
-      const file = fileSystem[fileKey]
-      setHistory((prev) => [
-        ...prev,
-        {
-          type: "output",
-          content: `import ${file.pyModule}... <span class="text-green-600">done</span>`,
-        },
-      ])
-
-      setTimeout(() => {
-        openFile(file.id)
-      }, 300)
-    } else {
-      setHistory((prev) => [
-        ...prev,
-        {
-          type: "error",
-          content: `Traceback (most recent call last): Command '${cmd}' not found`,
-        },
-      ])
-    }
-  }
-
   const handleTabClose = (id: string) => {
     const newTabs = openTabs.filter((tabId) => tabId !== id)
     setOpenTabs(newTabs)
@@ -92,29 +65,31 @@ export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-ide-bg text-ide-text font-mono overflow-hidden">
-      <TitleBar />
-      <div className="flex-1 flex overflow-hidden">
-        <ActivityBar />
-        <div className="flex-1 flex flex-col min-w-0 bg-ide-bg">
-          <EditorArea
-            fileSystem={fileSystem}
-            openTabs={openTabs}
-            activeTabId={activeTabId}
-            onTabClick={setActiveTabId}
-            onTabClose={handleTabClose}
-            onOpenFile={openFile}
-          />
-          <div className="h-1 bg-ide-border cursor-row-resize hover:bg-ide-accent transition-colors" />
-          <Terminal
-            fileSystem={fileSystem}
-            onCommand={handleCommand}
-            onClear={() => setHistory([])}
-            history={history}
-          />{" "}
+    <IdeProvider value={{ onOpenFile: openFile, fileSystem, isPaletteOpen, setPaletteOpen }}>
+      <div className="flex flex-col h-screen bg-ide-bg text-ide-text font-mono overflow-hidden">
+        <TitleBar />
+        <div className="flex-1 flex overflow-hidden">
+          <ActivityBar />
+          <div className="flex-1 flex flex-col min-w-0 bg-ide-bg relative">
+            <EditorArea
+              fileSystem={fileSystem}
+              openTabs={openTabs}
+              activeTabId={activeTabId}
+              onTabClick={setActiveTabId}
+              onTabClose={handleTabClose}
+              onOpenFile={openFile}
+            />
+            {/* Command Palette Overlay */}
+            <CommandPalette
+              isOpen={isPaletteOpen}
+              onClose={() => setPaletteOpen(false)}
+              fileSystem={fileSystem}
+              onOpenFile={openFile}
+            />
+          </div>
         </div>
+        <StatusBar lang={activeFile?.lang} />
       </div>
-      <StatusBar lang={activeFile?.lang} />
-    </div>
+    </IdeProvider>
   )
 }

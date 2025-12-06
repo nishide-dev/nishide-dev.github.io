@@ -7,6 +7,8 @@ import type { FileData } from "@/lib/data"
 interface IdeContextType {
   onOpenFile: (id: string) => void
   fileSystem: Record<string, FileData>
+  isPaletteOpen: boolean
+  setPaletteOpen: (isOpen: boolean) => void
 }
 
 const IdeContext = createContext<IdeContextType | null>(null)
