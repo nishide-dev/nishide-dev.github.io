@@ -86,14 +86,16 @@ export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
 
           {/* Mobile Sidebar (Drawer) */}
           <div
-            className={`md:hidden fixed inset-0 z-50 transition-all duration-300 ${isSidebarOpen ? "visible opacity-100" : "invisible opacity-0"
-              }`}
+            className={`md:hidden fixed inset-0 z-50 transition-all duration-300 ${
+              isSidebarOpen ? "visible opacity-100" : "invisible opacity-0"
+            }`}
           >
             {/* Backdrop */}
             <button
               type="button"
-              className={`absolute inset-0 w-full h-full bg-black/50 transition-opacity duration-300 border-none cursor-default ${isSidebarOpen ? "opacity-100" : "opacity-0"
-                }`}
+              className={`absolute inset-0 w-full h-full bg-black/50 transition-opacity duration-300 border-none cursor-default ${
+                isSidebarOpen ? "opacity-100" : "opacity-0"
+              }`}
               onClick={() => setSidebarOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === "Escape") setSidebarOpen(false)
@@ -102,8 +104,9 @@ export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
             />
             {/* Drawer */}
             <div
-              className={`absolute left-0 top-0 bottom-0 w-12 bg-ide-panel border-r border-ide-border flex flex-col items-center z-50 transform transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-                }`}
+              className={`absolute left-0 top-0 bottom-0 w-12 bg-ide-panel border-r border-ide-border flex flex-col items-center z-50 transform transition-transform duration-300 ${
+                isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+              }`}
             >
               <ActivityBar />
             </div>

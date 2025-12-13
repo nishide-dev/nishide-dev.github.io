@@ -1,7 +1,17 @@
 "use client"
-import { Briefcase, ChevronRight, Columns, Mail, Microscope, UserCircle, X } from "lucide-react"
+import {
+  Briefcase,
+  ChevronRight,
+  Columns,
+  Mail,
+  Menu,
+  Microscope,
+  UserCircle,
+  X,
+} from "lucide-react"
 import Image from "next/image"
 import ReactMarkdown from "react-markdown"
+import { useIdeContext } from "@/components/ide/ide-context"
 import { PageNavigation } from "@/components/ide/page-navigation"
 import type { FileData } from "@/lib/data"
 
@@ -57,6 +67,7 @@ export function EditorArea({
   onTabClose,
   onOpenFile,
 }: EditorAreaProps) {
+  const { setSidebarOpen } = useIdeContext()
   const activeFile = activeTabId
     ? Object.values(fileSystem).find((f) => f.id === activeTabId)
     : null
@@ -64,7 +75,17 @@ export function EditorArea({
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
       {/* Tabs Bar */}
-      <div className="h-9 bg-ide-panel border-b border-ide-border flex items-end px-0 select-none overflow-x-auto">
+      {/* Tabs Bar */}
+      <div className="h-12 md:h-9 bg-ide-panel border-b border-ide-border flex items-end px-0 select-none overflow-x-auto">
+        {/* Mobile Menu Button */}
+        <button
+          className="md:hidden h-full px-3 flex items-center justify-center text-ide-muted hover:text-ide-text border-r border-ide-border sticky left-0 bg-ide-panel z-10"
+          onClick={() => setSidebarOpen(true)}
+          type="button"
+          aria-label="Open sidebar"
+        >
+          <Menu size={16} />
+        </button>
         {openTabs.map((tabId) => {
           const file = Object.values(fileSystem).find((f) => f.id === tabId)
           if (!file) return null
