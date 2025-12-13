@@ -3,6 +3,7 @@ id: works/microbase
 filename: 長期インターン
 icon: briefcase
 pyModule: works.microbase
+thumbnail: /works/microbase/microbase-logo.png
 tags: ["Python", "AI", "Next.js", "AWS"]
 
 ---

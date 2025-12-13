@@ -76,19 +76,17 @@ export function EditorArea({
               type="button"
               key={tabId}
               onClick={() => onTabClick(tabId)}
-              className={`h-full px-4 flex items-center gap-2 text-xs cursor-pointer select-none min-w-fit border-r border-ide-border group bg-transparent border-none ${
-                isActive
-                  ? "bg-ide-bg text-ide-text border-t-2 border-t-ide-accent font-medium"
-                  : "bg-ide-panel text-ide-muted hover:bg-ide-bg/50 transition-colors"
-              }`}
+              className={`h-full px-4 flex items-center gap-2 text-xs cursor-pointer select-none min-w-fit border-r border-ide-border group bg-transparent border-none ${isActive
+                ? "bg-ide-bg text-ide-text border-t-2 border-t-ide-accent font-medium"
+                : "bg-ide-panel text-ide-muted hover:bg-ide-bg/50 transition-colors"
+                }`}
             >
               <Icon size={14} className={isActive ? "text-ide-accent" : "text-ide-muted"} />
               <span>{file.filename}</span>
               <X
                 size={12}
-                className={`ml-2 p-0.5 rounded-md hover:bg-ide-border/50 ${
-                  isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100 transition-opacity"
-                }`}
+                className={`ml-2 p-0.5 rounded-md hover:bg-ide-border/50 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100 transition-opacity"
+                  }`}
                 onClick={(e) => {
                   e.stopPropagation()
                   onTabClose(tabId)
@@ -146,13 +144,12 @@ export function EditorArea({
                       <div key={i} className="flex items-center">
                         <button
                           type="button"
-                          className={`flex items-center bg-transparent border-none p-0 ${
-                            isLast
-                              ? "text-ide-text font-medium cursor-default"
-                              : isClickable
-                                ? "hover:text-ide-text cursor-pointer transition-colors"
-                                : "opacity-50 cursor-default"
-                          }`}
+                          className={`flex items-center bg-transparent border-none p-0 ${isLast
+                            ? "text-ide-text font-medium cursor-default"
+                            : isClickable
+                              ? "hover:text-ide-text cursor-pointer transition-colors"
+                              : "opacity-50 cursor-default"
+                            }`}
                           onClick={() => {
                             if (isClickable) {
                               onOpenFile(path)
@@ -178,6 +175,16 @@ export function EditorArea({
             {/* Markdown Body */}
             <div className="flex-1 overflow-auto p-8 md:p-12">
               <div className="markdown-body max-w-3xl mx-auto">
+                {activeFile.thumbnail && (
+                  <div className="mb-8 w-full h-40 md:h-64 relative rounded-lg overflow-hidden border border-ide-border">
+                    <Image
+                      src={activeFile.thumbnail}
+                      alt={`${activeFile.filename} thumbnail`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
                 {activeFile.lang === "mdx" && activeFile.renderedContent ? (
                   activeFile.renderedContent
                 ) : (
