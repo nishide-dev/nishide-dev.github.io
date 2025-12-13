@@ -77,8 +77,8 @@ export function EditorArea({
               key={tabId}
               onClick={() => onTabClick(tabId)}
               className={`h-full px-4 flex items-center gap-2 text-xs cursor-pointer select-none min-w-fit border-r border-ide-border group bg-transparent border-none ${isActive
-                ? "bg-ide-bg text-ide-text border-t-2 border-t-ide-accent font-medium"
-                : "bg-ide-panel text-ide-muted hover:bg-ide-bg/50 transition-colors"
+                  ? "bg-ide-bg text-ide-text border-t-2 border-t-ide-accent font-medium"
+                  : "bg-ide-panel text-ide-muted hover:bg-ide-bg/50 transition-colors"
                 }`}
             >
               <Icon size={14} className={isActive ? "text-ide-accent" : "text-ide-muted"} />
@@ -128,7 +128,7 @@ export function EditorArea({
           <div className="absolute inset-0 flex flex-col z-20 bg-ide-bg animate-fade-in">
             {/* Breadcrumbs */}
             <div className="h-8 flex items-center px-4 text-xs text-ide-muted border-b border-ide-border/50 shrink-0 bg-ide-bg select-none font-mono">
-              <span className="mr-2 opacity-50">nishide-portfolio</span>
+              <span className="mr-2 opacity-50">portfolio</span>
               <ChevronRight size={10} className="mr-2 opacity-50" />
               <div className="flex items-center">
                 {(() => {
@@ -145,10 +145,10 @@ export function EditorArea({
                         <button
                           type="button"
                           className={`flex items-center bg-transparent border-none p-0 ${isLast
-                            ? "text-ide-text font-medium cursor-default"
-                            : isClickable
-                              ? "hover:text-ide-text cursor-pointer transition-colors"
-                              : "opacity-50 cursor-default"
+                              ? "text-ide-text font-medium cursor-default"
+                              : isClickable
+                                ? "hover:text-ide-text cursor-pointer transition-colors"
+                                : "opacity-50 cursor-default"
                             }`}
                           onClick={() => {
                             if (isClickable) {

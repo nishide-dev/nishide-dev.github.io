@@ -18,6 +18,7 @@ export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
   const [openTabs, setOpenTabs] = useState<string[]>(["about"])
   const [activeTabId, setActiveTabId] = useState<string | null>("about")
   const [isPaletteOpen, setPaletteOpen] = useState(false)
+  const [isSidebarOpen, setSidebarOpen] = useState(false)
 
   // Toggle palette with Cmd+K or Ctrl+K
   useEffect(() => {
@@ -65,11 +66,48 @@ export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
   }
 
   return (
-    <IdeProvider value={{ onOpenFile: openFile, fileSystem, isPaletteOpen, setPaletteOpen }}>
+    <IdeProvider
+      value={{
+        onOpenFile: openFile,
+        fileSystem,
+        isPaletteOpen,
+        setPaletteOpen,
+        isSidebarOpen,
+        setSidebarOpen,
+      }}
+    >
       <div className="flex flex-col h-screen bg-ide-bg text-ide-text font-mono overflow-hidden">
         <TitleBar />
         <div className="flex-1 flex overflow-hidden">
-          <ActivityBar />
+          {/* Desktop Sidebar */}
+          <div className="hidden md:block h-full shrink-0">
+            <ActivityBar />
+          </div>
+
+          {/* Mobile Sidebar (Drawer) */}
+          <div
+            className={`md:hidden fixed inset-0 z-50 transition-all duration-300 ${isSidebarOpen ? "visible opacity-100" : "invisible opacity-0"
+              }`}
+          >
+            {/* Backdrop */}
+            <button
+              type="button"
+              className={`absolute inset-0 w-full h-full bg-black/50 transition-opacity duration-300 border-none cursor-default ${isSidebarOpen ? "opacity-100" : "opacity-0"
+                }`}
+              onClick={() => setSidebarOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setSidebarOpen(false)
+              }}
+              aria-label="Close sidebar"
+            />
+            {/* Drawer */}
+            <div
+              className={`absolute left-0 top-0 bottom-0 w-12 bg-ide-panel border-r border-ide-border flex flex-col items-center z-50 transform transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+                }`}
+            >
+              <ActivityBar />
+            </div>
+          </div>
           <div className="flex-1 flex flex-col min-w-0 bg-ide-bg relative">
             <EditorArea
               fileSystem={fileSystem}

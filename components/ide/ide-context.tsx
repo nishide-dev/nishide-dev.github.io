@@ -9,6 +9,8 @@ interface IdeContextType {
   fileSystem: Record<string, FileData>
   isPaletteOpen: boolean
   setPaletteOpen: (isOpen: boolean) => void
+  isSidebarOpen: boolean
+  setSidebarOpen: (isOpen: boolean) => void
 }
 
 const IdeContext = createContext<IdeContextType | null>(null)

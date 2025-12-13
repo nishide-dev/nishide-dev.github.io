@@ -5,7 +5,7 @@ import { useIdeContext } from "@/components/ide/ide-context"
 export function ActivityBar() {
   const { setPaletteOpen } = useIdeContext()
   return (
-    <div className="w-12 bg-ide-panel border-r border-ide-border flex flex-col items-center py-3 gap-5 text-ide-muted shrink-0 z-40">
+    <div className="w-12 h-full bg-ide-panel border-r border-ide-border flex flex-col items-center py-3 gap-5 text-ide-muted shrink-0 z-40">
       <div
         title="Explorer"
         className="cursor-pointer border-l-2 border-ide-accent pl-3 -ml-3 box-content"

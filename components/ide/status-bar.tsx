@@ -5,7 +5,7 @@ interface StatusBarProps {
 }
 
 export function StatusBar({ lang }: StatusBarProps) {
-  let name = "Prettier"
+  let name = "Ruff"
   let Icon = CheckCircle
 
   if (lang === "python") {
@@ -30,8 +30,8 @@ export function StatusBar({ lang }: StatusBarProps) {
       </div>
       <div className="flex gap-4 opacity-90">
         <span className="cursor-pointer hover:opacity-80">Spaces: 4</span>
-        <span className="cursor-pointer hover:opacity-80">UTF-8</span>
-        <span className="cursor-pointer hover:opacity-80">Python 3.10 (uv)</span>
+        {/* <span className="cursor-pointer hover:opacity-80">UTF-8</span> */}
+        <span className="cursor-pointer hover:opacity-80">Python 3.12 (uv)</span>
         <span className="cursor-pointer hover:opacity-80">
           <Bell size={12} />
         </span>
