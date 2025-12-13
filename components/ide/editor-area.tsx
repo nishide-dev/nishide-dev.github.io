@@ -2,6 +2,7 @@
 import { Briefcase, ChevronRight, Columns, Mail, Microscope, UserCircle, X } from "lucide-react"
 import Image from "next/image"
 import ReactMarkdown from "react-markdown"
+import { PageNavigation } from "@/components/ide/page-navigation"
 import type { FileData } from "@/lib/data"
 
 // Map icon strings to components
@@ -226,6 +227,11 @@ export function EditorArea({
                     {activeFile.content}
                   </ReactMarkdown>
                 )}
+                <PageNavigation
+                  currentId={activeFile.id}
+                  fileSystem={fileSystem}
+                  onOpenFile={onOpenFile}
+                />
               </div>
             </div>
           </div>
