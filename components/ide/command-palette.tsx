@@ -66,7 +66,7 @@ export function CommandPalette({ isOpen, onClose, fileSystem, onOpenFile }: Comm
     // biome-ignore lint/a11y/useKeyWithClickEvents: Backdrop click
     // biome-ignore lint/a11y/noStaticElementInteractions: Backdrop click
     <div
-      className="absolute inset-0 z-50 flex justify-center pt-[20vh] bg-black/20 backdrop-blur-sm"
+      className="absolute inset-0 z-[70] flex justify-center pt-[20vh] bg-black/20 backdrop-blur-sm"
       onClick={onClose}
     >
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: Modal click propagation prevention */}

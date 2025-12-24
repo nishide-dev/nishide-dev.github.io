@@ -108,8 +108,9 @@ export function IdeLayout({ initialFileSystem, initialActiveId }: IdeLayoutProps
           </div>
 
           {/* Mobile Sidebar (Drawer) */}
+
           <div
-            className={`md:hidden fixed inset-0 z-50 transition-all duration-300 ${
+            className={`md:hidden fixed top-0 left-0 right-0 bottom-6 z-[60] transition-all duration-300 ${
               isSidebarOpen ? "visible opacity-100" : "invisible opacity-0"
             }`}
           >
@@ -127,11 +128,23 @@ export function IdeLayout({ initialFileSystem, initialActiveId }: IdeLayoutProps
             />
             {/* Drawer */}
             <div
-              className={`absolute left-0 top-0 bottom-0 w-12 bg-ide-panel border-r border-ide-border flex flex-col items-center z-50 transform transition-transform duration-300 ${
+              className={`absolute left-0 top-0 bottom-0 bg-ide-panel border-r border-ide-border flex z-50 transform transition-transform duration-300 ${
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
               }`}
             >
               <ActivityBar />
+              {activeSidebarView === "explorer" && (
+                <div className="w-64 h-full border-l border-ide-border">
+                  <Explorer
+                    fileSystem={fileSystem}
+                    activeTabId={activeTabId}
+                    onOpenFile={(id) => {
+                      openFile(id)
+                      setSidebarOpen(false)
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex-1 flex flex-col min-w-0 bg-ide-bg relative">
