@@ -22,7 +22,7 @@ This is a portfolio website built as a VS Code-themed IDE interface. The app use
 ### Content System
 
 All content is stored in `/content` directory as Markdown (.md) or MDX (.mdx) files:
-- Content files support frontmatter metadata (id, filename, icon, pyModule, lang, tags, thumbnail)
+- Content files support frontmatter metadata (id, filename, icon, lang, tags, thumbnail)
 - The `lib/files.ts` module reads all content files recursively at build time
 - MDX files are serialized using `next-mdx-remote` for rendering custom components
 - Files are indexed by their frontmatter `id` field (or derived from path if not specified)
@@ -60,7 +60,7 @@ Users navigate the portfolio via terminal commands:
 - `/close` - Close all tabs
 - `/<file-id>` - Open a file (e.g., `/profile`, `/works/microbase`)
 
-When a file is opened, it displays a Python-style import message using the file's `pyModule` frontmatter field.
+
 
 ### MDX Components
 

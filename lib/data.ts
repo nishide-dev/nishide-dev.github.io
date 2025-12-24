@@ -6,7 +6,6 @@ export type FileData = {
   filename: string
   path: string
   icon: string
-  pyModule: string
   lang: "markdown" | "mdx"
   content: string
   serializedContent?: MDXRemoteSerializeResult
