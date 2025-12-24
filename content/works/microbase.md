@@ -9,12 +9,13 @@ tags: ["Python", "AI", "Next.js", "AWS"]
 
 # [マイクロベース株式会社](https://www.microgeo.biz/jp)での長期インターン
 
-**役割**: AI Engineer
+**役割**: エンジニア
 
 **期間**: 2022/11 - 現在
 
-国土交通省 Project LINKS における行政文書自動構造化システムを開発。
-構造化アルゴリズムの開発、独自LLMのファインチューニング実装などを行なっています。
+- フロントエンドやバックエンド、インフラ、AIなど、フルスタックな開発に取り組んでいます。
+- [東京都のKING SULMON PROJECT](https://kingsalmon.metro.tokyo.lg.jp/company03/micro-base.html)において、都営住宅管理システムの構築。
+- [国土交通省 Project LINKS](https://www.mlit.go.jp/links/) における行政文書自動構造化システムを開発。構造化アルゴリズムの開発、独自LLMのファインチューニング実装などを行なっています。
 
 ## 技術スタック
 - **フロントエンド**: Next.js, TypeScript, TailwindCSS
