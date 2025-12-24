@@ -11,14 +11,30 @@ import { TitleBar } from "./title-bar"
 
 interface IdeLayoutProps {
   initialFileSystem: Record<string, FileData>
+  initialActiveId?: string
 }
 
-export function IdeLayout({ initialFileSystem }: IdeLayoutProps) {
+export function IdeLayout({ initialFileSystem, initialActiveId }: IdeLayoutProps) {
   const [fileSystem] = useState(initialFileSystem)
-  const [openTabs, setOpenTabs] = useState<string[]>(["about"])
-  const [activeTabId, setActiveTabId] = useState<string | null>("about")
+  // Initialize openTabs with the requested file if present
+  const [openTabs, setOpenTabs] = useState<string[]>(
+    initialActiveId && initialActiveId !== "about"
+      ? ["about", initialActiveId]
+      : ["about"]
+  )
+  // Set active tab to the requested file, or 'about' as default
+  const [activeTabId, setActiveTabId] = useState<string | null>(initialActiveId || "about")
   const [isPaletteOpen, setPaletteOpen] = useState(false)
   const [isSidebarOpen, setSidebarOpen] = useState(false)
+
+  // Sync URL with active tab
+  useEffect(() => {
+    if (activeTabId) {
+      const newPath = activeTabId === "about" ? "/" : `/${activeTabId}`
+      // Use pushState to avoid hard reload
+      window.history.pushState(null, "", newPath)
+    }
+  }, [activeTabId])
 
   // Toggle palette with Cmd+K or Ctrl+K
   useEffect(() => {
