@@ -7,6 +7,18 @@ interface PageProps {
   }>
 }
 
+export async function generateStaticParams() {
+  const fileSystem = await getAllFiles()
+  const paths = Object.values(fileSystem).map((file) => ({
+    slug: file.id.split("/"),
+  }))
+
+  return [
+    { slug: [] }, // Represents "/"
+    ...paths,
+  ]
+}
+
 export default async function Page({ params }: PageProps) {
   const { slug } = await params
   const fileSystem = await getAllFiles()
