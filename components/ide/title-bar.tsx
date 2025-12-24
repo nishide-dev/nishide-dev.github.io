@@ -17,7 +17,9 @@ export function TitleBar() {
           <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 hover:bg-yellow-500 transition-colors cursor-pointer" />
           <div className="w-2.5 h-2.5 rounded-full bg-green-400 hover:bg-green-500 transition-colors cursor-pointer" />
         </div>
-        <span className="text-ide-text font-bold opacity-70">Ryusei Nishide - Portfolio Workspace</span>
+        <span className="text-ide-text font-bold opacity-70">
+          Ryusei Nishide - Portfolio Workspace
+        </span>
       </div>
       <div className="flex gap-4 text-ide-muted">
         <span className="hover:text-ide-text cursor-pointer">

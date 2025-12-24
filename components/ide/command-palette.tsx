@@ -72,7 +72,7 @@ export function CommandPalette({ isOpen, onClose, fileSystem, onOpenFile }: Comm
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: Modal click propagation prevention */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Modal click propagation prevention */}
       <div
-        className="w-[600px] max-w-[90%] bg-ide-bg rounded-lg shadow-2xl border border-ide-border flex flex-col overflow-hidden max-h-[400px]"
+        className="w-[600px] max-w-[90%] bg-ide-bg rounded-none shadow-2xl border border-ide-border flex flex-col overflow-hidden max-h-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center px-4 py-3 border-b border-ide-border gap-3">

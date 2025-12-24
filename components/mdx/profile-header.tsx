@@ -14,7 +14,17 @@ export function ProfileHeader() {
       </div>
       <div>
         <h1 className="text-3xl font-bold text-ide-text mb-1">Ryusei Nishide</h1>
-        <p className="text-ide-muted text-lg">Engineer / Researcher <a href="https://www.toyota-ti.ac.jp/lab/kde" target="_blank" rel="noopener noreferrer" className="hover:text-ide-accent transition-colors">@TTI KDE Lab.</a></p>
+        <p className="text-ide-muted text-lg">
+          Engineer / Researcher{" "}
+          <a
+            href="https://www.toyota-ti.ac.jp/lab/kde"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-ide-accent transition-colors"
+          >
+            @TTI KDE Lab.
+          </a>
+        </p>
       </div>
     </div>
   )
