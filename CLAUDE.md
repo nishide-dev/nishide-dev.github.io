@@ -4,90 +4,93 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-This project uses `pnpm` as the package manager.
+This project uses `pnpm` as the package manager. Do not add `package-lock.json` or `yarn.lock`.
 
 ```bash
-pnpm dev           # Start development server at localhost:3000
-pnpm build         # Build for production
-pnpm start         # Start production server
-pnpm lint          # Lint code with Biome
-pnpm format        # Format code with Biome
-pnpm check         # Lint and format with Biome (--write)
+pnpm dev         # Vite dev server (http://localhost:5173)
+pnpm build       # tsc -b && vite build → dist/
+pnpm preview     # Serve the built dist/ locally
+pnpm lint        # biome check .
+pnpm format      # biome check --write .
+pnpm typecheck   # tsc --noEmit
+pnpm test        # vitest run
 ```
+
+Every PR must pass `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`.
 
 ## Architecture Overview
 
-This is a portfolio website built as a VS Code-themed IDE interface. The app uses Next.js 16 with the App Router and renders markdown/MDX content in an interactive code editor-like UI.
+A personal portfolio built as a **single-page** React + Vite static site, deployed to GitHub
+Pages. The structure is based on [`nishide-dev/react-template`](https://github.com/nishide-dev/react-template).
 
-### Content System
+There is no router: `index.html` → `src/main.tsx` → `src/App.tsx` is the whole entry path. Do not
+introduce routing, MDX, or a content-collection layer without a corresponding issue.
 
-All content is stored in `/content` directory as Markdown (.md) or MDX (.mdx) files:
-- Content files support frontmatter metadata (id, filename, icon, lang, tags, thumbnail)
-- The `lib/files.ts` module reads all content files recursively at build time
-- MDX files are serialized using `next-mdx-remote` for rendering custom components
-- Files are indexed by their frontmatter `id` field (or derived from path if not specified)
-
-Content files are structured as:
 ```
-content/
-  ├── profile.md
-  ├── works.mdx          # Main works page with <ProjectGrid /> component
-  ├── contact.md
-  └── works/
-      ├── microbase.md
-      └── resq-link.md
+index.html              # Vite entry; also inlines the pre-hydration theme script
+src/
+├─ components/
+│  ├─ ui/               # shadcn/ui components (Base UI primitives)
+│  └─ theme-provider.tsx
+├─ lib/                 # utils (cn)
+├─ styles/globals.css   # Tailwind v4 entry + design tokens
+├─ test/setup.ts        # Vitest setup (jest-dom)
+├─ App.tsx
+└─ main.tsx
+public/                 # Copied verbatim to dist/ (favicon, images)
 ```
 
-### UI Architecture
+### Theming
 
-The main interface simulates a VS Code IDE with these components (all in `/components/ide/`):
-- **TitleBar**: Top bar with window controls
-- **ActivityBar**: Left sidebar navigation
-- **EditorArea**: Main content display with tabs
-- **Terminal**: Bottom panel with command-line interface for navigation
-- **StatusBar**: Bottom status indicator
+Dark mode is class-based (`.dark` on `<html>`). Two pieces cooperate:
 
-The IDE layout is client-side (`IdeLayout` component) and manages:
-- File system state (from server-rendered content)
-- Open tabs and active tab state
-- Terminal command history
-- File navigation via terminal commands
+- The inline script in `index.html` applies the stored/system theme before first paint to avoid a
+  flash.
+- `src/components/theme-provider.tsx` owns the runtime state, persists to `localStorage` under the
+  `theme` key, follows `prefers-color-scheme` when set to `system`, syncs across tabs, and binds a
+  `d` keypress shortcut to toggle themes.
 
-### Terminal Commands
-
-Users navigate the portfolio via terminal commands:
-- `/clear` - Clear terminal history
-- `/close` - Close all tabs
-- `/<file-id>` - Open a file (e.g., `/profile`, `/works/microbase`)
-
-
-
-### MDX Components
-
-Custom MDX components are in `/components/mdx/`:
-- `ProjectGrid` - Renders project cards from content/works/*.md files
-- `ProjectCard` - Individual project card with thumbnail and metadata
+Color tokens live in `src/styles/globals.css` as CSS custom properties under `:root` and `.dark`,
+surfaced to Tailwind via `@theme inline`.
 
 ### Styling
 
-- Uses Tailwind CSS v4 with custom IDE theme colors
-- CSS custom properties prefixed with `--ide-` (e.g., `--ide-bg`, `--ide-text`)
-- Configured with shadcn/ui (New York style) but most components are custom-built
+- Tailwind CSS v4 via `@tailwindcss/vite` — there is no `tailwind.config.js` and no PostCSS config.
+- shadcn/ui is configured in `components.json` (`base-nova` style, `neutral` base color, lucide
+  icons). Add components with `pnpm dlx shadcn@latest add <name>`.
+- `src/styles/globals.css` imports `shadcn/tailwind.css`, so the `shadcn` package must stay a
+  runtime dependency.
 
 ### Code Quality
 
-Biome is used for linting and formatting with these key rules:
-- Double quotes for strings (`quoteStyle: "double"`)
-- Semicolons as needed (`semicolons: "asNeeded"`)
-- 2 space indentation
-- 100 character line width
-- Arrow parentheses always included
-- No unused variables (error)
-- No explicit any (warn)
+Biome handles both linting and formatting (`biome.json`):
+
+- Double quotes, semicolons as needed, ES5 trailing commas
+- 2-space indentation, 80 character line width
+- `noUnusedVariables` / `noUnusedImports` are errors
+- `useSortedClasses` auto-sorts Tailwind classes in `cn()` and `cva()` calls
+- `useIgnoreFile` is on, so `.gitignore` also governs what Biome sees
+
+lefthook runs `biome check --write` on staged files at pre-commit.
 
 ### Path Aliases
 
-TypeScript paths are configured with `@/*` pointing to project root:
-- `@/components` - Component imports
-- `@/lib` - Utility functions
-- `@/hooks` - React hooks (if added)
+`@/*` resolves to `src/*` — configured in both `vite.config.ts` (bundler) and `tsconfig.app.json`
+(types). Keep the two in sync.
+
+### TypeScript
+
+Project references: `tsconfig.json` → `tsconfig.app.json` (`src/`, DOM libs) and
+`tsconfig.node.json` (`vite.config.ts`, node types). `strict`, `noUnusedLocals`,
+`noUnusedParameters`, and `verbatimModuleSyntax` are all on.
+
+### Testing
+
+Vitest with the jsdom environment and React Testing Library. Co-locate tests next to the code
+(`App.test.tsx`, `components/ui/button.test.tsx`).
+
+## Roadmap
+
+The rebuild is tracked in issue [#1](https://github.com/nishide-dev/nishide-dev.github.io/issues/1).
+Design system, layout, timeline data model, timeline UI, GitHub activity, content, quality, and
+deployment each have their own issue — check the relevant one before adding features.

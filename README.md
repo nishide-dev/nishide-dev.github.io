@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# nishide-dev.github.io
 
-## Getting Started
+個人ポートフォリオサイト。React + Vite の静的サイトとしてビルドし、GitHub Pages で配信する。
 
-First, run the development server:
+構成は [`nishide-dev/react-template`](https://github.com/nishide-dev/react-template) を基盤にしている。
+
+## 開発
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev        # 開発サーバー (http://localhost:5173)
+pnpm build      # 型チェック + 本番ビルド → dist/
+pnpm preview    # dist/ をローカルで確認
+pnpm lint       # Biome check
+pnpm format     # Biome check --write
+pnpm typecheck  # tsc --noEmit
+pnpm test       # Vitest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+package manager は pnpm のみを使用する。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 技術構成
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- React 19 / Vite / TypeScript (strict)
+- Tailwind CSS v4
+- shadcn/ui + Base UI
+- Biome (lint / format)
+- Vitest + React Testing Library
+- lefthook (pre-commit で Biome を実行)
 
-## Learn More
+## ロードマップ
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+再構築の全体像と個別タスクは Issue [#1](https://github.com/nishide-dev/nishide-dev.github.io/issues/1) を参照。
