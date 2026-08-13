@@ -34,6 +34,7 @@ introduce routing, MDX, or a content-collection layer without a corresponding is
 index.html              # Vite entry; also inlines the pre-hydration theme script
 src/
 ├─ components/
+│  ├─ activity/         # github-activity, contribution-grid, use-contributions
 │  ├─ layout/           # site-header, external-links, site-footer
 │  ├─ timeline/         # timeline, timeline-item
 │  ├─ ui/               # shadcn/ui components (Base UI primitives)
@@ -46,6 +47,7 @@ src/
 │  ├─ profile.ts        # identity, intro copy, external links
 │  └─ timeline.ts       # timeline content — data only, never JSX
 ├─ lib/
+│  ├─ github-activity.ts # contribution fetch + reshape, no components
 │  ├─ links.ts          # Href, Link, and href scheme → link behaviour
 │  ├─ timeline.ts       # timeline types + pure format/sort/group helpers
 │  └─ utils.ts          # cn()
@@ -96,6 +98,34 @@ each named with its event id — duplicate or empty ids, empty titles, malformed
 over-declared precision, backwards ranges, self-references, duplicated and dangling `relatedTo`,
 plus the things the UI cannot defend against on its own: an empty or duplicated `details` line, a
 link with no label, and two links sharing an href.
+
+### GitHub activity
+
+`src/components/activity/` renders the contribution calendar between the intro and the timeline.
+`src/lib/github-activity.ts` is the fetch and reshape layer, deliberately separate: the components
+take a `ContributionCalendar`, never a URL, so this can become a build-time step without touching
+anything that renders.
+
+The endpoint is `github-contributions-api.jogruber.de`, called from the browser with **no token** —
+this is the client bundle, so a token would be readable by anyone. `parseContributions` narrows the
+response rather than trusting it; a third-party API is not a contract, and `unknown` cast into a
+component surfaces as `undefined` in the DOM instead of as a failure the caller can handle.
+
+**A third party going down is a normal outcome, not an exception.** `useContributions` is
+three-valued and `error` is as ordinary as `ready`; both keep the heading and the GitHub link, both
+reserve the graph's height so the timeline never jumps, and the reason is `console.warn`ed once.
+
+Bands are `--activity-0..4`, mixed from the palette primitives with `color-mix` so editing one moves
+the whole ramp. Navy in light, **sand in dark** — the page is already navy there, so the scale has to
+climb away from the background rather than into it. `LEVEL_CLASS` spells the class names out because
+Tailwind scans for literal strings: `bg-activity-${level}` compiles to nothing.
+
+Cell size is fixed and the *week count* is what responds — a narrow viewport drops the oldest weeks
+rather than scrolling or shrinking cells past legibility. 52 weeks at 680px, 27 at 390px, measured.
+
+The grid is one `role="img"` with a summary label (range and total), and the cells are `aria-hidden`.
+Per-day counts are hover-only, which is a deliberate trade: the alternatives are 371 tab stops or
+371 announced table cells, and neither serves a reader better than the summary does.
 
 ### Timeline UI
 
@@ -298,6 +328,9 @@ Vitest with the jsdom environment and React Testing Library. Co-locate tests nex
   access in try/catch, the resulting `TypeError` was swallowed and theme persistence was never
   actually exercised. An in-memory `Storage` replaces it, which also keeps runs deterministic across
   Node versions.
+- **`fetch`.** Replaced with an immediate rejection, so no test can reach the network. A test that
+  needs a response stubs it; everything else gets the same shape as an outage, which the activity
+  section already handles.
 
 Storage, the OS preference and the `<html>` class are all global, so `beforeEach` reinstalls them —
 reinstalls rather than clears, since a test may have swapped in a throwing stub.

@@ -103,6 +103,15 @@ class MemoryStorage implements Storage {
   }
 }
 
+// No test may reach the network. A test that needs a response stubs `fetch`
+// itself; everything else gets an immediate rejection, which is the same shape
+// as an outage and is what the components already handle.
+Object.defineProperty(window, "fetch", {
+  configurable: true,
+  writable: true,
+  value: () => Promise.reject(new TypeError("fetch is not available in tests")),
+})
+
 function installLocalStorage() {
   Object.defineProperty(window, "localStorage", {
     configurable: true,

@@ -87,6 +87,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-activity-0: var(--activity-0);
+  --color-activity-1: var(--activity-1);
+  --color-activity-2: var(--activity-2);
+  --color-activity-3: var(--activity-3);
+  --color-activity-4: var(--activity-4);
 }
 
 /* Primitives — Color Hunt palette. Components never reference these; the
@@ -125,6 +130,15 @@
   --selection: var(--brand-sand);
   --selection-foreground: var(--brand-navy);
 
+  /* Contribution-graph bands. Navy rather than GitHub's green, mixed toward the
+     page so the scale sits in the same palette as everything else. Derived with
+     `color-mix` so editing the primitive moves the whole ramp. */
+  --activity-0: var(--muted);
+  --activity-1: color-mix(in oklab, var(--brand-navy) 18%, var(--background));
+  --activity-2: color-mix(in oklab, var(--brand-navy) 36%, var(--background));
+  --activity-3: color-mix(in oklab, var(--brand-navy) 60%, var(--background));
+  --activity-4: color-mix(in oklab, var(--brand-navy) 88%, var(--background));
+
   --radius: 0.3125rem; /* 5px */
 }
 
@@ -154,6 +168,14 @@
 
   --selection: var(--brand-sand);
   --selection-foreground: var(--brand-navy);
+
+  /* Sand, not navy: the page is already navy here, so the ramp has to climb
+     away from the background rather than into it. */
+  --activity-0: var(--muted);
+  --activity-1: color-mix(in oklab, var(--brand-sand) 22%, var(--background));
+  --activity-2: color-mix(in oklab, var(--brand-sand) 42%, var(--background));
+  --activity-3: color-mix(in oklab, var(--brand-sand) 66%, var(--background));
+  --activity-4: var(--brand-sand);
 }
 
 @layer base {
