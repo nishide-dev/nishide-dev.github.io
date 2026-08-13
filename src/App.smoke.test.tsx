@@ -8,19 +8,19 @@ import { timeline } from "@/data/timeline"
 import { App } from "./App"
 
 /**
- * The whole page at once, against the real data.
+ * The whole page at once, with the activity request succeeding.
  *
- * The other App specs each cover one concern; this one answers "does the page
- * still work" — the question a refactor in any single component could break
- * without failing that component's own tests.
+ * `profile` and `timeline` are the real data; the contributions are synthetic,
+ * because `src/test/setup.ts` rejects every fetch. That is what this file adds
+ * over the other App specs: they only ever see the activity *error* path, and
+ * `github-activity.test.tsx` renders the component outside the page. Four
+ * assertions here fail nowhere else — the grid and the timeline rendered
+ * together, `lang="en"` on both English headings, the keyboard reaching and
+ * cycling the toggle, and a failed activity request staying inside its section.
+ *
+ * The rest overlaps `App.test.tsx` on purpose: this is the file that answers
+ * "does the page still work", so it reads top to bottom as the page does.
  */
-
-/** jsdom has no ResizeObserver, and the contribution grid measures itself. */
-class NoopResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
 
 const contributions = Array.from({ length: 14 }, (_, index) => ({
   date: new Date(Date.UTC(2026, 6, 5 + index)).toISOString().slice(0, 10),
@@ -29,7 +29,9 @@ const contributions = Array.from({ length: 14 }, (_, index) => ({
 }))
 
 function renderSite({ activityFails = false } = {}) {
-  vi.stubGlobal("ResizeObserver", NoopResizeObserver)
+  // No ResizeObserver stub: jsdom has none, and the grid's own guard skips
+  // constructing one — its single measurement already bails at clientWidth 0.
+  // A no-op stub could not have changed anything here.
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => {
@@ -99,14 +101,16 @@ describe("the page", () => {
       "href",
       "mailto:nishide.dev@gmail.com"
     )
-    // Every timeline link that leaves the page does so safely.
-    for (const link of screen.getAllByRole("link")) {
-      if (link.getAttribute("target") === "_blank") {
-        expect(link).toHaveAttribute(
-          "rel",
-          expect.stringContaining("noreferrer")
-        )
-      }
+    // Every link that leaves the page does so safely. Filtered before the
+    // assertion, not guarded inside the loop: an `if (target === "_blank")`
+    // body is skipped in exactly the case that matters — `target` regressing —
+    // so the test would pass by never running.
+    const external = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("target") === "_blank")
+    expect(external.length).toBeGreaterThan(0)
+    for (const link of external) {
+      expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"))
     }
   })
 
@@ -114,10 +118,16 @@ describe("the page", () => {
     const user = userEvent.setup()
     renderSite()
 
-    await user.tab()
-    const toggle = screen.getByRole("button")
-    expect(toggle).toHaveFocus()
+    // Named rather than "the only button", and reachable rather than first:
+    // asserting focus after a single Tab would fail on an added control or a
+    // skip link, neither of which is a regression.
+    const toggle = screen.getByRole("button", { name: /テーマ:/ })
     expect(toggle).toHaveAccessibleName(/テーマ: システム設定/)
+
+    for (let stops = 0; stops < 10 && !toggle.matches(":focus"); stops++) {
+      await user.tab()
+    }
+    expect(toggle).toHaveFocus()
 
     await user.keyboard("{Enter}")
     expect(toggle).toHaveAccessibleName(/テーマ: ライト/)

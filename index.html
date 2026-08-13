@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!--
-      These strings are duplicated in src/data/site.ts, because Vite does not
-      template index.html and a crawler reads this file before any JavaScript
-      runs. src/site.test.ts fails when the two drift.
+      These strings are duplicated in src/data/site.ts. A crawler reads the built
+      copy of this file and never runs the bundle, and Vite gives index.html no
+      way to import a TS module: `%ENV%` substitution needs the values plumbed
+      through the env, and a `transformIndexHtml` plugin would be ~10 lines of
+      build config. The duplication is the cheaper trade, and src/site.test.ts
+      fails when the two drift.
     -->
     <title>Ryusei Nishide</title>
     <meta
@@ -35,9 +38,15 @@
 
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <!--
-      Matched to the two `--background` values in src/styles/globals.css. The UA
-      paints this behind the page and in browser chrome, so a single value shows
-      the wrong ground in one of the themes.
+      A hint some UAs use to tint browser chrome — the Chrome-for-Android
+      toolbar, the iOS Safari overscroll gutter. It is not what paints behind the
+      page: that is the root background and `color-scheme` in globals.css.
+
+      Matched to the two `--background` values there, which src/styles/404.test.ts
+      and src/site.test.ts both assert against the real tokens. Keying on
+      `prefers-color-scheme` is the best a static file can do; because the site's
+      theme is an explicit stored choice, theme-provider.tsx overwrites both with
+      the theme actually in effect once it runs.
     -->
     <meta
       name="theme-color"

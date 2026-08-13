@@ -8,9 +8,16 @@
   links. GitHub Pages serves this file for any path it cannot find.
 
   Standalone by necessity — it must render before, and without, the app — so the
-  palette is inlined. The four values are the light and dark `--background` and
-  `--foreground` from src/styles/globals.css; they are literals here because
-  nothing can import a stylesheet at this point.
+  palette is inlined: eight literals copied from src/styles/globals.css, being
+  `--background`, `--foreground` and `--muted-foreground` in each theme, plus the
+  two `theme-color` values. Nothing can import a stylesheet at this point, so
+  `src/styles/404.test.ts` asserts all eight against the real tokens instead.
+
+  The `theme-color` pair keys on `prefers-color-scheme` and so ignores a theme
+  the visitor picked on the site. That is deliberate: reading the stored choice
+  needs a script, and it would be a *third* copy of the theme decision that
+  index.html and theme-provider.tsx already duplicate. This page's whole job is
+  to link home.
 -->
 <html lang="ja">
   <head>

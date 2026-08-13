@@ -53,10 +53,11 @@ describe("App", () => {
   })
 
   it("renders every real timeline entry", () => {
-    // This file does NOT mock `@/data/timeline`, so it is the only place the
-    // real content is rendered. Without an assertion here, one malformed date
-    // is swallowed by the section's ErrorBoundary and the whole timeline is
-    // replaced by a failure message with the suite still green.
+    // This file does NOT mock `@/data/timeline` (nor do App.timeline.test.tsx
+    // and App.smoke.test.tsx, which assert this too). Without an assertion of
+    // this shape somewhere, one malformed date is swallowed by the section's
+    // ErrorBoundary and the whole timeline is replaced by a failure message
+    // with the suite still green.
     renderApp()
 
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(
