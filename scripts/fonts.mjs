@@ -11,20 +11,27 @@
  * fonts themselves — it is about the stylesheet that has to arrive before
  * anything paints, and about the 5MB of woff2 that shipped in `dist/` regardless.
  *
- * The needed set is derived, never listed: every non-ASCII character appearing
- * anywhere under `src/` or in `index.html` is looked up in the package's own
- * `unicode.json`. Scanning source text rather than rendered output deliberately
- * over-collects — a kanji in a comment keeps its subset — because the failure
- * mode of under-collecting is a glyph silently falling back to a system font,
- * and the failure mode of over-collecting is a few hundred bytes.
+ * The needed set is derived, never listed: every non-ASCII character in every
+ * non-binary, non-test file under `src/`, plus `index.html`, is looked up in the
+ * package's own `unicode.json`. Fontsource renumbers these files when Noto's
+ * coverage changes, so a number written down here would silently repoint on a
+ * version bump — which is exactly how og.mjs came to embed a maths-symbol subset
+ * as "the Japanese this card uses".
  *
- * `src/styles/fonts.test.ts` asserts the committed file both covers every such
- * character and contains no block no character needs, so editing content without
+ * Scanning source text rather than rendered output over-collects on purpose: a
+ * kanji in a comment keeps its subset. The two directions fail very differently.
+ * Under-collecting means a glyph falls back to the reader's system font, or to
+ * tofu, with nothing to signal it. Over-collecting costs one `@font-face` block
+ * (~550 B raw, ~150 B gzip) and one woff2 in `dist/` that no browser requests.
+ *
+ * `src/styles/fonts.test.ts` checks the committed file three ways — it matches
+ * what this script would emit, it covers every character in the corpus, and it
+ * carries no block the corpus does not need — so editing content without
  * rerunning this fails CI rather than shipping tofu.
  */
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { dirname, join, relative } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 
@@ -37,34 +44,89 @@ export function ranges(declaration) {
 }
 
 /**
- * Source files whose text can reach the page.
+ * Binary and generated files, which carry no text destined for the page.
  *
- * `fonts.css` is skipped because it is this script's own output: its header
- * comment is prose, and letting it into the corpus would make the generated file
- * an input to its own generation.
+ * An **exclude** list, not an allow list. The first version allowed
+ * `.ts/.tsx/.css/.html`, which silently dropped a `.json` data file — Vite
+ * imports those natively, so `{"note": "麒麟"}` rendered in Hiragino with the
+ * guard test green. Excluding by extension means a new text-bearing file type is
+ * in the corpus by default and the mistake costs an unrequested subset instead of
+ * a missing glyph.
+ *
+ * `fonts.css` is this script's own output: its header is prose, and letting it in
+ * would make the generated file an input to its own generation.
  */
-export function sourceFiles(dir, acc = []) {
+const NOT_TEXT =
+  /\.(png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|eot|pdf|zip|mp4|webm|lock)$/i
+
+/**
+ * Test files are excluded, matching the `@source not "../**\/*.test.{ts,tsx}"`
+ * already in globals.css. Their text cannot reach a reader: a mock timeline entry
+ * and a Unicode-normalisation fixture were between them pulling in three subsets
+ * — 96, `cyrillic` and `vietnamese`, ~19KB of render-blocking CSS and 36KB of
+ * woff2 nobody can request.
+ */
+const IS_TEST = /\.test\.(tsx?|[jm]s)$/
+
+/** Source files whose text can reach the page. */
+export function sourceFiles(dir, acc = [], stop = dir) {
   for (const entry of readdirSync(dir).sort()) {
     const path = join(dir, entry)
-    if (statSync(path).isDirectory()) sourceFiles(path, acc)
-    else if (/\.(tsx?|css|html)$/.test(entry) && entry !== "fonts.css")
-      acc.push(path)
+    if (statSync(path).isDirectory()) {
+      sourceFiles(path, acc, stop)
+      continue
+    }
+    if (NOT_TEXT.test(entry) || IS_TEST.test(entry)) continue
+    if (relative(stop, path) === join("styles", "fonts.css")) continue
+    acc.push(path)
   }
   return acc
 }
 
 /**
+ * Characters written as escapes rather than literally.
+ *
+ * A raw byte scan sees `"麒"` as ASCII, so the glyph it renders would have no
+ * subset. Decoding is deliberately loose — `\d` in a regex is not hex and is
+ * skipped, while a hex-looking escape that was never a character just adds a
+ * subset nobody requests. The CSS form (`content: "\9e92"`) is only read in
+ * stylesheets, because in JS `\9e92` is `\9` followed by `e92`.
+ */
+function decodeEscapes(text, isCss) {
+  const found = []
+  for (const [, braced, plain] of text.matchAll(
+    /\\u\{([0-9a-fA-F]{1,6})\}|\\u([0-9a-fA-F]{4})/g
+  )) {
+    const cp = Number.parseInt(braced ?? plain, 16)
+    if (cp > 0x7f && cp <= 0x10ffff) found.push(String.fromCodePoint(cp))
+  }
+  if (isCss) {
+    for (const [, hex] of text.matchAll(/\\([0-9a-fA-F]{4,6})\s?/g)) {
+      const cp = Number.parseInt(hex, 16)
+      if (cp > 0x7f && cp <= 0x10ffff) found.push(String.fromCodePoint(cp))
+    }
+  }
+  return found.join("")
+}
+
+/**
  * Every character a Latin font cannot draw, across `src/` and index.html.
  *
- * ASCII is excluded because Geist covers it and Noto's own `latin` subset backs
- * it up; what matters here is which CJK blocks have to be present.
+ * ASCII is skipped because Geist covers it. (Noto's own `latin` subset happens to
+ * as well, but that is incidental — it ships only because `é`, `—` and the curly
+ * quotes fall in it, and the browser never requests it.)
  */
 export function requiredCharacters(repoRoot) {
   const files = [
     ...sourceFiles(join(repoRoot, "src")),
     join(repoRoot, "index.html"),
   ]
-  const text = files.map((file) => readFileSync(file, "utf8")).join("")
+  const text = files
+    .map((file) => {
+      const source = readFileSync(file, "utf8")
+      return source + decodeEscapes(source, file.endsWith(".css"))
+    })
+    .join("")
   return new Set([...text].filter((ch) => ch.codePointAt(0) > 0x7f))
 }
 
@@ -145,14 +207,18 @@ export function generateFontCss(repoRoot) {
  * GENERATED by scripts/fonts.mjs — do not edit by hand.
  *
  * The ${keys.length} Noto Sans JP subsets this site's text needs, out of the 124
- * Fontsource ships. Rerun the script after changing any Japanese copy;
+ * Fontsource ships. Run \`pnpm fonts\` after adding any non-ASCII character under
+ * src/ or to index.html — comments count, not just copy.
  * src/styles/fonts.test.ts fails while this file is stale.
  */
 ${blocks.join("\n\n")}
 `
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// `pathToFileURL`, not string concatenation: a repo path with a space or a
+// non-ASCII segment percent-encodes in `import.meta.url`, and the comparison
+// would fail silently — `pnpm fonts` would exit 0 having written nothing.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const css = generateFontCss(root)
   const out = join(root, "src/styles/fonts.css")
   writeFileSync(out, css)

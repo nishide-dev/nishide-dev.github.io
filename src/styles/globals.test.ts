@@ -231,28 +231,55 @@ describe("palette", () => {
 describe("animation utilities", () => {
   it("uses none, which is what lets tw-animate-css stay uninstalled", () => {
     // Tailwind compiles an unrecognised utility to nothing at all, so adding a
-    // shadcn component that animates would silently render without animation
-    // rather than failing. This is the failure that would otherwise be silent:
-    // if it fires, either drop the class or reinstall `tw-animate-css` and
-    // restore its @import at the top of globals.css.
-    const needsPackage =
-      /\b-?(?:animate-in|animate-out|fade-in|fade-out|zoom-in|zoom-out|slide-in-from|slide-out-to|spin-in|spin-out|blur-in|blur-out|fill-mode|play-state|paused|running)\b/
+    // shadcn component that animates would silently render unanimated rather than
+    // failing the build. If this fires: drop the class, or reinstall
+    // `tw-animate-css`, restore its @import at the top of globals.css, and delete
+    // this test — the assertion at the end of it rejects that import by design.
+    const needsPackage = [
+      // The enter/exit families.
+      /\b-?(?:animate-in|animate-out)\b/,
+      /\b-?(?:fade|zoom|spin|blur)-(?:in|out)\b/,
+      /\bslide-(?:in-from|out-to)-/,
+      // The named keyframes, which tw-animate-css declares as @theme variables
+      // rather than utilities — and which are exactly what shadcn's Accordion,
+      // Collapsible, Sidebar and Input-OTP ship.
+      /\banimate-(?:accordion|collapsible)-(?:up|down)\b/,
+      /\banimate-caret-blink\b/,
+      // The animation-property utilities. Anchored to their value shapes: bare
+      // `repeat-` also matches inside Tailwind's own `bg-repeat-x`, and bare
+      // `running`/`paused` are ordinary English — `const running = …` used to fail
+      // this test and tell you to install an animation package.
+      /\banimation-duration-/,
+      /\brepeat-(?:\d|infinite|\[)/,
+      /\bdirection-(?:normal|reverse|alternate)\b/,
+      /\bfill-mode-(?:none|forwards|backwards|both)\b/,
+      /\bplay-state-(?:running|paused)\b/,
+    ]
 
     const files = appSourceFiles()
     expect(files.length, "found no app sources to scan").toBeGreaterThan(0)
 
-    const offenders = files.filter((file) =>
-      needsPackage.test(stripCommentsAndAnchors(readFileSync(file, "utf8")))
-    )
+    // index.html is in the scan because globals.css declares it as an @source, so
+    // Tailwind compiles class names out of it and appSourceFiles() does not reach
+    // it on its own.
+    const scanned = [...files, join(SRC, "..", "index.html")]
+
+    const offenders = scanned.filter((file) => {
+      const source = stripCommentsAndAnchors(readFileSync(file, "utf8"))
+      return needsPackage.some((pattern) => pattern.test(source))
+    })
 
     expect(
       offenders.map((f) => f.replace(`${SRC}/`, "")),
       "these need tw-animate-css, which this project does not install"
     ).toEqual([])
 
-    // And the import really is gone, so the test above is load-bearing. Matched
-    // as an @import: the comment above it in globals.css names the package.
-    expect(css).not.toMatch(/@import\s+["']tw-animate-css["']/)
+    // And the import really is gone, so the check above is load-bearing. Matched
+    // as an @import against comment-stripped CSS: globals.css names the package in
+    // prose right where the import used to be.
+    expect(stripCommentsAndAnchors(css)).not.toMatch(
+      /@import\s+["']tw-animate-css["']/
+    )
   })
 })
 
