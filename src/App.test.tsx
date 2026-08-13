@@ -13,6 +13,14 @@ function renderApp() {
   )
 }
 
+/** The intro's link row. The Activity section carries a GitHub link too, so an
+ * unscoped `getByRole("link", { name: /^GitHub/ })` matches two. */
+function profileLink(name: RegExp) {
+  return within(
+    screen.getByRole("navigation", { name: "外部リンク" })
+  ).getByRole("link", { name })
+}
+
 describe("App", () => {
   it("names the page with a level-1 heading", () => {
     renderApp()
@@ -57,11 +65,11 @@ describe("App", () => {
     // imports, which would pass for any URL the data happens to hold.
     expect(screen.queryByRole("link")).toBeNull()
     renderApp()
-    expect(screen.getByRole("link", { name: /^GitHub/ })).toHaveAttribute(
+    expect(profileLink(/^GitHub/)).toHaveAttribute(
       "href",
       "https://github.com/nishide-dev"
     )
-    expect(screen.getByRole("link", { name: /^Email/ })).toHaveAttribute(
+    expect(profileLink(/^Email/)).toHaveAttribute(
       "href",
       "mailto:nishide.dev@gmail.com"
     )
@@ -69,7 +77,7 @@ describe("App", () => {
 
   it("opens http links in a new tab, safely, and marks them with ↗", () => {
     renderApp()
-    const link = screen.getByRole("link", { name: /^GitHub/ })
+    const link = profileLink(/^GitHub/)
 
     expect(link).toHaveAttribute("target", "_blank")
     // Without noreferrer the opened page gets a handle on this one.
@@ -83,7 +91,7 @@ describe("App", () => {
 
   it("hands a mailto to the mail client, without the new-tab arrow", () => {
     renderApp()
-    const link = screen.getByRole("link", { name: /^Email/ })
+    const link = profileLink(/^Email/)
 
     // target=_blank on a mailto leaves a blank tab behind in some browsers.
     expect(link).not.toHaveAttribute("target")

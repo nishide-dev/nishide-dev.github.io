@@ -7,6 +7,8 @@ import type { Link } from "@/lib/links"
 
 export const profile = {
   name: "Ryusei Nishide",
+  /** The account the contribution graph and the GitHub link both point at. */
+  github: "nishide-dev",
   avatar: {
     src: "/github-avatar.png",
     /** Empty: the name sits right next to it, so announcing it twice is noise. */
