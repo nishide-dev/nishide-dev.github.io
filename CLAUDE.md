@@ -34,14 +34,18 @@ introduce routing, MDX, or a content-collection layer without a corresponding is
 index.html              # Vite entry; also inlines the pre-hydration theme script
 src/
 ├─ components/
+│  ├─ layout/           # site-header, external-links, site-footer
 │  ├─ ui/               # shadcn/ui components (Base UI primitives)
-│  └─ theme-provider.tsx
-├─ data/timeline.ts     # timeline content — data only, never JSX
+│  ├─ theme-provider.tsx
+│  └─ theme-toggle.tsx
+├─ data/
+│  ├─ profile.ts        # identity, intro copy, external links
+│  └─ timeline.ts       # timeline content — data only, never JSX
 ├─ lib/
 │  ├─ timeline.ts       # timeline types + pure format/sort/group helpers
 │  └─ utils.ts          # cn()
 ├─ styles/globals.css   # Tailwind v4 entry + design tokens
-├─ test/setup.ts        # Vitest setup (jest-dom)
+├─ test/setup.ts        # Vitest setup (jest-dom, matchMedia, localStorage)
 ├─ App.tsx
 └─ main.tsx
 public/                 # Copied verbatim to dist/ (favicon, images)
@@ -93,11 +97,33 @@ Dark mode is class-based (`.dark` on `<html>`). Two pieces cooperate:
 - The inline script in `index.html` applies the stored/system theme before first paint to avoid a
   flash.
 - `src/components/theme-provider.tsx` owns the runtime state, persists to `localStorage` under the
-  `theme` key, follows `prefers-color-scheme` when set to `system`, syncs across tabs, and binds a
-  `d` keydown shortcut to toggle themes.
+  `theme` key, follows `prefers-color-scheme` when set to `system`, and syncs across tabs.
 
-The two duplicate the same decision, so a change to the storage key, the default theme, or the
-class names has to be made in both places — nothing links them mechanically.
+The two duplicate the same decision, so nothing links them mechanically and three rules keep them
+from drifting:
+
+- **Only `dark` is ever toggled.** The script cannot produce a `light` class, so React must not
+  either, or the first `.light`-scoped rule breaks first paint alone.
+- **Any stored value that is not `light`/`dark` means system.** The whole `nishide-dev.github.io`
+  origin shares one `localStorage`, so a stale key from another project page is a real input, and
+  disagreeing about it paints one theme then flips.
+- **The default theme and the storage key are not props.** The script has to decide before React
+  exists and cannot read props, so a configurable default would guarantee the flash it prevents.
+  `DEFAULT_THEME` is a module constant for that reason.
+
+The script guards only the storage *read*: reading can throw outright (Safari with cookies blocked,
+a sandboxed iframe), and letting that skip the whole block would drop the system preference too and
+paint light on a dark OS.
+
+`useTheme()` exposes the **choice**, not the resolved theme. The resolution lives on `<html>` as the
+`dark` class and is consumed by CSS, so nothing reads it in JS — and a control should render the
+choice anyway, since showing the resolution makes "system, currently light" and "light" identical.
+
+`ThemeToggle` **cycles** system → light → dark rather than toggling. A two-state toggle is a one-way
+door out of `system`: the first press pins a theme and nothing in the UI ever restores following the
+OS. The template's global `d` keydown shortcut was removed — it fired on Shift+D and during IME
+composition on a Japanese page, could not see Base UI's typeahead targets, and was itself a one-way
+door out of `system`.
 
 Color tokens live in `src/styles/globals.css` as CSS custom properties under `:root` and `.dark`,
 surfaced to Tailwind via `@theme inline`.
@@ -202,6 +228,24 @@ Project references: `tsconfig.json` → `tsconfig.app.json` (`src/`, DOM libs) a
 
 Vitest with the jsdom environment and React Testing Library. Co-locate tests next to the code
 (`App.test.tsx`, `components/ui/button.test.tsx`).
+
+`src/test/setup.ts` patches four gaps, each of which otherwise fails silently rather than loudly:
+
+- **RTL auto-cleanup.** Vitest runs without `globals: true`, so RTL cannot find a global `afterEach`
+  to register with and rendered trees accumulate across tests in a file.
+- **The act environment.** The same missing globals mean `setReactActEnvironment` never runs, so
+  React's "not wrapped in act(...)" warning is off for the whole suite.
+- **`window.matchMedia`.** The stub tracks its listeners and exports `colorScheme` so any test can
+  flip the OS preference; a stub whose `addEventListener` is a no-op silently drops the subscription
+  and makes that behaviour unobservable.
+- **`localStorage`.** Node ships its own global that needs `--localstorage-file` and otherwise
+  resolves to an object with *no methods*, shadowing jsdom's. Since `ThemeProvider` wraps storage
+  access in try/catch, the resulting `TypeError` was swallowed and theme persistence was never
+  actually exercised. An in-memory `Storage` replaces it, which also keeps runs deterministic across
+  Node versions.
+
+Storage, the OS preference and the `<html>` class are all global, so `beforeEach` reinstalls them —
+reinstalls rather than clears, since a test may have swapped in a throwing stub.
 
 ## Deployment
 

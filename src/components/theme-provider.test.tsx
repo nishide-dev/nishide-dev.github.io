@@ -12,7 +12,10 @@ describe("ThemeProvider", () => {
     )
 
     expect(screen.getByText("child")).toBeInTheDocument()
-    // The matchMedia stub in src/test/setup.ts reports matches: false.
-    expect(document.documentElement).toHaveClass("light")
+    // The matchMedia stub in src/test/setup.ts reports matches: false. Only
+    // `dark` is ever toggled — the pre-paint script in index.html cannot
+    // produce a `light` class, so React must not either.
+    expect(document.documentElement).not.toHaveClass("dark")
+    expect(document.documentElement).not.toHaveClass("light")
   })
 })

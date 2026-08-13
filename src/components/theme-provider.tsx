@@ -1,22 +1,38 @@
 import * as React from "react"
 
-type Theme = "dark" | "light" | "system"
-type ResolvedTheme = "dark" | "light"
+export type Theme = "dark" | "light" | "system"
+export type ResolvedTheme = "dark" | "light"
 
 type ThemeProviderProps = {
   children: React.ReactNode
-  defaultTheme?: Theme
   storageKey?: string
   disableTransitionOnChange?: boolean
 }
 
 type ThemeProviderState = {
+  /**
+   * What the user chose. `"system"` means "follow the OS".
+   *
+   * The resolved theme is deliberately not exposed: it lives on `<html>` as the
+   * `dark` class and is consumed by CSS, so nothing needs to read it in JS. A
+   * control shows the *choice* — rendering the resolution would make "system,
+   * currently light" and "light" identical, which is the distinction a theme
+   * control exists to expose.
+   */
   theme: Theme
   setTheme: (theme: Theme) => void
 }
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
 const THEME_VALUES: Theme[] = ["dark", "light", "system"]
+
+/**
+ * Hardcoded rather than a prop. The pre-paint script in index.html has to make
+ * the same decision before React exists and cannot read props, so a
+ * configurable default would let first paint and hydration disagree — the exact
+ * flash the script is there to prevent.
+ */
+const DEFAULT_THEME: Theme = "system"
 
 const ThemeProviderContext = React.createContext<
   ThemeProviderState | undefined
@@ -30,12 +46,37 @@ function isTheme(value: string | null): value is Theme {
   return THEME_VALUES.includes(value as Theme)
 }
 
-function getSystemTheme(): ResolvedTheme {
-  if (window.matchMedia(COLOR_SCHEME_QUERY).matches) {
-    return "dark"
+function prefersDark(): boolean {
+  // jsdom has no matchMedia, and neither does a non-browser renderer.
+  if (
+    typeof window === "undefined" ||
+    typeof window.matchMedia !== "function"
+  ) {
+    return false
   }
 
-  return "light"
+  return window.matchMedia(COLOR_SCHEME_QUERY).matches
+}
+
+function resolve(theme: Theme): ResolvedTheme {
+  if (theme !== "system") {
+    return theme
+  }
+  return prefersDark() ? "dark" : "light"
+}
+
+function readStoredTheme(storageKey: string): Theme {
+  try {
+    const stored = localStorage.getItem(storageKey)
+    // Anything unrecognised means "system", matching the pre-paint script.
+    // This origin is shared with every other nishide-dev.github.io project
+    // page, so a stale key written by one of them is a real input.
+    return isTheme(stored) ? stored : DEFAULT_THEME
+  } catch (_error) {
+    // Storage can throw outright (Safari with cookies blocked, sandboxed
+    // iframes), not just return null.
+    return DEFAULT_THEME
+  }
 }
 
 function disableTransitionsTemporarily() {
@@ -57,44 +98,14 @@ function disableTransitionsTemporarily() {
   }
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  if (target.isContentEditable) {
-    return true
-  }
-
-  const editableParent = target.closest(
-    "input, textarea, select, [contenteditable='true']"
-  )
-  if (editableParent) {
-    return true
-  }
-
-  return false
-}
-
 export function ThemeProvider({
   children,
-  defaultTheme = "system",
   storageKey = "theme",
   disableTransitionOnChange = true,
-  ...props
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = React.useState<Theme>(() => {
-    try {
-      const storedTheme = localStorage.getItem(storageKey)
-      if (isTheme(storedTheme)) {
-        return storedTheme
-      }
-    } catch (_error) {
-      return defaultTheme
-    }
-
-    return defaultTheme
-  })
+  const [theme, setThemeState] = React.useState<Theme>(() =>
+    readStoredTheme(storageKey)
+  )
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
@@ -108,21 +119,29 @@ export function ThemeProvider({
     [storageKey]
   )
 
+  // The pre-paint script already applied the right class, so the first run is a
+  // no-op — but the transition suppression it would trigger is not: it appends
+  // `*,*::before,*::after{transition:none}` to <head>, forces a synchronous
+  // recalc, and removes it two frames later, invalidating the whole document
+  // twice while the browser is still parsing the stylesheet.
+  const hasApplied = React.useRef(false)
+
   const applyTheme = React.useCallback(
     (nextTheme: Theme) => {
-      const root = document.documentElement
-      const resolvedTheme =
-        nextTheme === "system" ? getSystemTheme() : nextTheme
-      const restoreTransitions = disableTransitionOnChange
+      const resolved = resolve(nextTheme)
+      const suppressTransitions =
+        disableTransitionOnChange && hasApplied.current
+      const restoreTransitions = suppressTransitions
         ? disableTransitionsTemporarily()
         : null
 
-      root.classList.remove("light", "dark")
-      root.classList.add(resolvedTheme)
+      // Only ever toggles `dark`, exactly like the pre-paint script. Adding a
+      // `light` class here too would give React a state the script cannot
+      // produce, so the first `.light`-scoped rule would break only first paint.
+      document.documentElement.classList.toggle("dark", resolved === "dark")
+      hasApplied.current = true
 
-      if (restoreTransitions) {
-        restoreTransitions()
-      }
+      restoreTransitions?.()
     },
     [disableTransitionOnChange]
   )
@@ -130,7 +149,7 @@ export function ThemeProvider({
   React.useEffect(() => {
     applyTheme(theme)
 
-    if (theme !== "system") {
+    if (theme !== "system" || typeof window.matchMedia !== "function") {
       return undefined
     }
 
@@ -147,65 +166,19 @@ export function ThemeProvider({
   }, [theme, applyTheme])
 
   React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) {
-        return
-      }
-
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        return
-      }
-
-      if (isEditableTarget(event.target)) {
-        return
-      }
-
-      if (event.key.toLowerCase() !== "d") {
-        return
-      }
-
-      setThemeState((currentTheme) => {
-        const nextTheme =
-          currentTheme === "dark"
-            ? "light"
-            : currentTheme === "light"
-              ? "dark"
-              : getSystemTheme() === "dark"
-                ? "light"
-                : "dark"
-
-        try {
-          localStorage.setItem(storageKey, nextTheme)
-        } catch (_error) {
-          // ignore: localStorage unavailable, fall back to in-memory state
-        }
-        return nextTheme
-      })
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [storageKey])
-
-  React.useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.storageArea !== localStorage) {
-        return
-      }
-
       if (event.key !== storageKey) {
         return
       }
 
-      if (isTheme(event.newValue)) {
-        setThemeState(event.newValue)
+      // `storageArea` is checked only when present: a synthetic StorageEvent
+      // carries none, and sessionStorage — the thing this guards against —
+      // always does.
+      if (event.storageArea && event.storageArea !== localStorage) {
         return
       }
 
-      setThemeState(defaultTheme)
+      setThemeState(isTheme(event.newValue) ? event.newValue : DEFAULT_THEME)
     }
 
     window.addEventListener("storage", handleStorageChange)
@@ -213,18 +186,12 @@ export function ThemeProvider({
     return () => {
       window.removeEventListener("storage", handleStorageChange)
     }
-  }, [defaultTheme, storageKey])
+  }, [storageKey])
 
-  const value = React.useMemo(
-    () => ({
-      theme,
-      setTheme,
-    }),
-    [theme, setTheme]
-  )
+  const value = React.useMemo(() => ({ theme, setTheme }), [theme, setTheme])
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ThemeProviderContext.Provider value={value}>
       {children}
     </ThemeProviderContext.Provider>
   )

@@ -4,17 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <title>nishide-dev</title>
+    <title>Ryusei Nishide</title>
+    <!--
+      Applies the theme before first paint. It must reach the same verdict as
+      src/components/theme-provider.tsx for every stored value, including
+      unrecognised ones — anything but "light"/"dark" is treated as "system" in
+      both places, or a stale key from another nishide-dev.github.io project
+      page (they share one origin) paints white and then flips to dark.
+    -->
     <script>
       ;(() => {
+        // Reading storage can throw outright (Safari with cookies blocked, a
+        // sandboxed iframe), not just return null. Falling out of the whole
+        // block there would skip the system preference too and paint light on a
+        // dark OS, so only the read is guarded.
+        let stored = null
         try {
-          const theme = localStorage.getItem("theme")
-          const dark =
-            theme === "dark" ||
-            ((!theme || theme === "system") &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches)
-          document.documentElement.classList.toggle("dark", dark)
+          stored = localStorage.getItem("theme")
         } catch (_) {}
+
+        const dark =
+          stored === "dark" ||
+          (stored !== "light" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.classList.toggle("dark", dark)
       })()
     </script>
   </head>
