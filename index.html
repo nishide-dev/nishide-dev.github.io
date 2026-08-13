@@ -3,8 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <!--
+      These strings are duplicated in src/data/site.ts. A crawler reads the built
+      copy of this file and never runs the bundle, and Vite gives index.html no
+      way to import a TS module: `%ENV%` substitution needs the values plumbed
+      through the env, and a `transformIndexHtml` plugin would be ~10 lines of
+      build config. The duplication is the cheaper trade, and src/site.test.ts
+      fails when the two drift.
+    -->
     <title>Ryusei Nishide</title>
+    <meta
+      name="description"
+      content="ソフトウェアエンジニア / 大学院生。ソフトウェア開発に携わりながら、自然言語処理・知識表現に関する研究に取り組んでいます。"
+    />
+    <link rel="canonical" href="https://nishide-dev.github.io/" />
+
+    <meta property="og:type" content="profile" />
+    <meta property="og:url" content="https://nishide-dev.github.io/" />
+    <meta property="og:title" content="Ryusei Nishide" />
+    <meta
+      property="og:description"
+      content="ソフトウェアエンジニア / 大学院生。ソフトウェア開発に携わりながら、自然言語処理・知識表現に関する研究に取り組んでいます。"
+    />
+    <meta
+      property="og:image"
+      content="https://nishide-dev.github.io/og.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ja_JP" />
+    <!-- X reads the OG tags for everything except the card type. -->
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <!--
+      A hint some UAs use to tint browser chrome — the Chrome-for-Android
+      toolbar, the iOS Safari overscroll gutter. It is not what paints behind the
+      page: that is the root background and `color-scheme` in globals.css.
+
+      Matched to the two `--background` values there, which src/styles/404.test.ts
+      and src/site.test.ts both assert against the real tokens. Keying on
+      `prefers-color-scheme` is the best a static file can do; because the site's
+      theme is an explicit stored choice, theme-provider.tsx overwrites both with
+      the theme actually in effect once it runs.
+    -->
+    <meta
+      name="theme-color"
+      content="#f8f8ee"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#30364f"
+      media="(prefers-color-scheme: dark)"
+    />
+
     <!--
       Applies the theme before first paint. It must reach the same verdict as
       src/components/theme-provider.tsx for every stored value, including
@@ -29,6 +83,22 @@
             window.matchMedia("(prefers-color-scheme: dark)").matches)
         document.documentElement.classList.toggle("dark", dark)
       })()
+    </script>
+
+    <!--
+      Only what is confirmed: the name, this page, and the one account it links
+      to. No employer, no affiliation, no job title — the timeline carries those
+      with their dates, and inventing attributes here is how structured data
+      starts lying.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Ryusei Nishide",
+        "url": "https://nishide-dev.github.io/",
+        "sameAs": ["https://github.com/nishide-dev"]
+      }
     </script>
   </head>
   <body>

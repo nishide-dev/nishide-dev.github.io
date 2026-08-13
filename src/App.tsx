@@ -35,9 +35,12 @@ export function App() {
 
           {timeline.length > 0 && (
             <section aria-labelledby="timeline-heading" className="mt-section">
+              {/* The document is `lang="ja"`; an English section label read by a
+                  Japanese voice is mangled. */}
               <h2
                 className="font-mono text-label text-muted-foreground uppercase"
                 id="timeline-heading"
+                lang="en"
               >
                 Timeline
               </h2>

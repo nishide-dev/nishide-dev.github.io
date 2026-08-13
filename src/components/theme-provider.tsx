@@ -79,6 +79,46 @@ function readStoredTheme(storageKey: string): Theme {
   }
 }
 
+/**
+ * Points every `theme-color` meta at the theme actually in effect.
+ *
+ * index.html declares two of them keyed on `prefers-color-scheme`, which is the
+ * best a static file can do — but the theme here is an explicit stored choice,
+ * so on an OS set to light with `dark` picked the page is navy while the UA
+ * paints cream in the chrome and the overscroll gutter. Writing the resolved
+ * colour into both makes the media queries redundant rather than wrong,
+ * whichever one the UA selects.
+ *
+ * The colours are read from the page's own computed `--background` instead of
+ * being restated here — this is a component, and CLAUDE.md's design system
+ * forbids a hex value in one.
+ */
+function syncThemeColor() {
+  const metas = document.querySelectorAll<HTMLMetaElement>(
+    'meta[name="theme-color"]'
+  )
+  if (metas.length === 0) {
+    return
+  }
+
+  const background = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--background")
+    .trim()
+  if (background === "") {
+    // The stylesheet has not arrived yet (or this is jsdom). Leaving the static
+    // pair in place beats blanking it.
+    return
+  }
+
+  for (const meta of metas) {
+    meta.setAttribute("content", background)
+    // Both now carry the same value, so a stale `media` could only make the UA
+    // skip a meta that says the right thing.
+    meta.removeAttribute("media")
+  }
+}
+
 function disableTransitionsTemporarily() {
   const style = document.createElement("style")
   style.appendChild(
@@ -139,6 +179,8 @@ export function ThemeProvider({
       // `light` class here too would give React a state the script cannot
       // produce, so the first `.light`-scoped rule would break only first paint.
       document.documentElement.classList.toggle("dark", resolved === "dark")
+      // After the class, so the computed `--background` is the new theme's.
+      syncThemeColor()
       hasApplied.current = true
 
       restoreTransitions?.()
