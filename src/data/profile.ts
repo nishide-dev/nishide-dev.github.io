@@ -15,9 +15,16 @@ export const profile = {
     alt: "",
   },
   /**
-   * **M2 goes stale in April 2027**, and nothing here will notice — a grade is a
-   * fixed-term status, and this file is the only place it is written. Revisit it
+   * **M2 goes stale in April 2027**, and nothing here will notice. Revisit it
    * then, or drop to 修士課程, which stays true until 修了.
+   *
+   * It is written in **four** places, not one, and they are not equally
+   * protected. `src/site.test.ts` fails if `index.html`'s two copies drift from
+   * this string, so editing here surfaces those. The fourth is `public/og.png`,
+   * where the words are **pixels** — no test reads them back, so a correct edit
+   * everywhere else still ships a social card saying M2, with the suite green.
+   * Run the generator in `scripts/og.mjs`, which says the same thing from its
+   * own side.
    *
    * `profile.test.ts` still forbids a *year*: 「2026年」would be wrong on a
    * schedule of months rather than years, and unlike M2 it reads as a fact

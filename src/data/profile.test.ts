@@ -39,23 +39,36 @@ describe("profile", () => {
     expect(new Set(profile.intro).size).toBe(profile.intro.length)
   })
 
-  it("names no calendar year in the intro", () => {
-    // The university is named here on purpose, so the blanket "no organisation"
-    // rule this replaced no longer holds. A *year* is still refused: it reads as
-    // a fact rather than as a status, so nobody thinks to re-check it, and it is
-    // wrong from a specific month rather than gradually.
-    //
-    // `M2` is the one number allowed, and only because it is a status the
-    // docblock in profile.ts dates. Everything else the timeline carries.
+  it("says what the intro is meant to say, and nothing dated", () => {
     const copy = profile.intro.join("")
+
+    // Affirmed, not just prohibited. Without this the intro can lose the
+    // university — or name a different one — and every test stays green, which
+    // is the whole point of the change that introduced it.
+    expect(copy, "the intro names the university").toContain("豊田工業大学")
+    // The second paragraph already says software development is the work, so
+    // the role in the first would be the same claim twice (see profile.ts).
+    expect(copy).not.toContain("ソフトウェアエンジニア")
+
+    // The timeline carries these with their dates; a second place to keep
+    // current is exactly what the intro is not.
     for (const name of ["知識データ工学研究室", "microbase"]) {
       expect(copy, name).not.toContain(name)
     }
+
+    // `M2` is exempted by removing it and then refusing *every* remaining
+    // digit — not by a regex that lists the year shapes it can imagine. The
+    // list version passed `'26`, `R8`, and a silent `M2`→`M3`; this one does
+    // not, and it makes the grade a literal the test names, so editing it
+    // trips here rather than shipping.
+    //
+    // Still ASCII-only, as `/\d/` always was: `２０２６年` and `二〇二六年`
+    // pass. Neither is a shape this copy would take, and neither was caught
+    // before.
     expect(
-      copy,
-      "a year in the intro is a second place to keep current"
-    ).not.toMatch(/(?:19|20)\d{2}/)
-    expect(copy, "no 年/年度 in the intro").not.toMatch(/\d+\s*年/)
+      copy.replace("M2", ""),
+      "M2 is the only number the intro may carry"
+    ).not.toMatch(/\d/)
   })
 
   it("is deeply readonly, links included", () => {

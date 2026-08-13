@@ -25,6 +25,17 @@ import type { TimelineEvent } from "@/lib/timeline"
  * - `description` is text, not HTML. Say what was done rather than how
  *   impressive it was, and keep proper nouns in their official spelling —
  *   `microbase` is lowercase.
+ * - **An award goes in the title**, not in `details`: a reader scanning
+ *   headings never opens the body. `type` still records what the event *was*
+ *   (`hackathon`, not `award`). `timeline.test.ts` pins all three titles.
+ * - **An ordinal is a confirmed fact, not a guess.** `第32回` is on the ANLP
+ *   entry because 言語処理学会年次大会 is annual and 2026 is verifiably the
+ *   32nd. EACL is not annual, so its 2026 ordinal is not derivable and is
+ *   omitted — inventing one is sharpening a date by another name.
+ * - **No entry currently uses `details`.** The renderer and
+ *   `assertValidTimeline` still support it, and `timeline.test.tsx` covers it
+ *   with fixtures, but nothing in this file exercises it — so a regression
+ *   there would not show on the real page.
  */
 export const timeline: TimelineEvent[] = [
   {
