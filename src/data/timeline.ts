@@ -31,9 +31,14 @@ export const timeline: TimelineEvent[] = [
     id: "eacl-2026-presentation",
     date: { start: "2026-03" },
     type: "presentation",
-    title: "EACL 2026 で論文を発表",
+    // "国際学会" and nothing more: the field is already obvious from the
+    // surrounding entries, and the prefix repeats on the accepted entry right
+    // below. The full name goes in the description, and only on this one. No
+    // ordinal — EACL numbers its conferences, but which number 2026 is has not
+    // been confirmed, and inventing one is the same mistake as sharpening a date.
+    title: "国際学会 EACL 2026 で論文を発表",
     description:
-      "“Mitigating Degree Bias in Hypergraphs via Attribute-as-Structure Approach” を EACL 2026 で発表しました。",
+      "“Mitigating Degree Bias in Hypergraphs via Attribute-as-Structure Approach” を EACL 2026（Conference of the European Chapter of the Association for Computational Linguistics）で発表しました。",
     relatedTo: ["tti-kde"],
     links: [
       {
@@ -46,7 +51,7 @@ export const timeline: TimelineEvent[] = [
     id: "eacl-2026-accepted",
     date: { start: "2026-01" },
     type: "publication",
-    title: "EACL 2026 に論文が採択",
+    title: "国際学会 EACL 2026 に論文が採択",
     description:
       "“Mitigating Degree Bias in Hypergraphs via Attribute-as-Structure Approach” が EACL 2026 に採択されました。",
     relatedTo: ["tti-kde"],
@@ -73,10 +78,13 @@ export const timeline: TimelineEvent[] = [
     id: "pksha-2025",
     date: { start: "2025-09" },
     type: "hackathon",
-    title: "PKSHA Technology 3days インターンハッカソン",
+    // The award is in the title, matching anlp-2026-award above. It used to sit
+    // in `details`, where a reader scanning headings never saw it. `type` stays
+    // "hackathon" — the title now carries both facts, and the type is what the
+    // event *was*.
+    title: "PKSHA Technology 3days インターンハッカソン 最優秀賞を受賞",
     description:
       "4人チームにアルゴリズムエンジニアとして参加。AI エージェントの社会実装をテーマに、音声対話によって医療の問診や予約を自動化するエージェントを開発しました。",
-    details: ["最優秀賞"],
   },
   {
     id: "project-links",
@@ -92,10 +100,9 @@ export const timeline: TimelineEvent[] = [
     id: "giiku-camp-2024",
     date: { start: "2024-04" },
     type: "hackathon",
-    title: "サポーターズ 技育CAMP2024",
+    title: "サポーターズ 技育CAMP2024 努力賞を受賞",
     description:
       "2人チーム「にしもり」で参加。ネットワーク制約下でも利用できるローカル LLM を活用した災害時支援アプリを開発しました。",
-    details: ["努力賞"],
   },
   {
     id: "tti-kde",

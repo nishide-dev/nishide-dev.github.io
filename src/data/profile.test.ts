@@ -39,15 +39,23 @@ describe("profile", () => {
     expect(new Set(profile.intro).size).toBe(profile.intro.length)
   })
 
-  it("names no organisation and no year in the intro", () => {
-    // The timeline carries the affiliations with their dates. Repeating one here
-    // would be a second place to keep current, and a year would go stale on a
-    // schedule nobody is watching.
+  it("names no calendar year in the intro", () => {
+    // The university is named here on purpose, so the blanket "no organisation"
+    // rule this replaced no longer holds. A *year* is still refused: it reads as
+    // a fact rather than as a status, so nobody thinks to re-check it, and it is
+    // wrong from a specific month rather than gradually.
+    //
+    // `M2` is the one number allowed, and only because it is a status the
+    // docblock in profile.ts dates. Everything else the timeline carries.
     const copy = profile.intro.join("")
-    for (const name of ["豊田工業大学", "知識データ工学研究室", "microbase"]) {
+    for (const name of ["知識データ工学研究室", "microbase"]) {
       expect(copy, name).not.toContain(name)
     }
-    expect(copy).not.toMatch(/\d/)
+    expect(
+      copy,
+      "a year in the intro is a second place to keep current"
+    ).not.toMatch(/(?:19|20)\d{2}/)
+    expect(copy, "no 年/年度 in the intro").not.toMatch(/\d+\s*年/)
   })
 
   it("is deeply readonly, links included", () => {

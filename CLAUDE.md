@@ -136,10 +136,25 @@ it as `sr-only`. Sharing a month is not enough — `2024.04` and `2024.04 — �
 so the 技育CAMP entry and the lab affiliation both print their own. Which of two identically-labelled
 entries comes first is the `id` tie-break, not a judgement. Nothing hand-orders the timeline.
 
-`profile.intro` names no organisation and no year, which `profile.test.ts` asserts. The timeline
-carries the affiliations worth dating, so repeating one in the intro would be a second place to keep
-current. It decays far more slowly than the earlier draft's "修士2年" — but 大学院生 is still a
-fixed-term status, so it is not exempt.
+**An award goes in the entry's title, not in `details`.** All three read
+`… 若手奨励賞を受賞` / `… 最優秀賞を受賞` / `… 努力賞を受賞`; the two hackathons used to carry theirs as a
+`details` line, where a reader scanning headings never saw it. `type` still says what the event *was*
+(`hackathon`, not `award`) — the title carries both facts, and nothing renders `type` anyway.
+
+**A conference gets its scope in the title and its full name in the description** — `国際学会 EACL
+2026 …`, expanded once on the presentation entry as `Conference of the European Chapter of the
+Association for Computational Linguistics`. Just `国際学会`, not `自然言語処理の国際学会`: the field is
+already obvious from the entries around it, and the prefix would repeat on the accepted entry directly
+below. **No ordinal.** EACL numbers its conferences, but which number 2026 is has not been confirmed,
+and inventing one is the same failure as sharpening a date.
+
+`profile.intro` names the university but **no calendar year**, which `profile.test.ts` asserts —
+「2026年」reads as a fact rather than a status, so nobody re-checks it. `M2` is the one number allowed,
+and it is a known expiry: **it becomes false in April 2027**, and nothing in the repo will notice. The
+docblock in `profile.ts` carries that date; 修士課程 is the durable fallback. The intro also does not
+name the lab or microbase — the timeline carries those with their dates, and it deliberately does not
+say `ソフトウェアエンジニア`, because the second paragraph already says software development is the
+work.
 
 ### GitHub activity
 
