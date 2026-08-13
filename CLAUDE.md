@@ -104,6 +104,14 @@ Vitest with the jsdom environment and React Testing Library. Co-locate tests nex
 
 GitHub Pages, from GitHub Actions — there is no Jekyll step and no `gh-pages` branch.
 
+**The Pages publishing source must stay "GitHub Actions"** (`build_type: "workflow"`; check with
+`gh api repos/nishide-dev/nishide-dev.github.io/pages`). Switching it back to "Deploy from a
+branch" silently breaks the site rather than reverting it: the legacy `pages-build-deployment`
+publisher serves `main`'s root verbatim, which means the **unbuilt** `index.html` — it loads
+`/src/main.tsx`, which no browser can execute, so the page renders blank while the whole source
+tree becomes publicly fetchable. `actions/configure-pages` does **not** flip this back for you on
+an already-configured repo; only the repo setting does.
+
 - `.github/workflows/ci.yml` runs on **pull requests only**: lint → typecheck → test → build.
 - `.github/workflows/deploy.yml` runs on **pushes to `main`** (and `workflow_dispatch`). Its
   `build` job repeats the same four gates, then uploads `dist/` via `upload-pages-artifact`; a
