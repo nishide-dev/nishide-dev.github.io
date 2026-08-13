@@ -1,4 +1,8 @@
-@import "tailwindcss";
+/* `source(none)` turns off automatic detection. Left on, Tailwind scans the
+   whole repo and compiles class names out of prose and config — CLAUDE.md's
+   documentation of `mt-entry`, `contents: read` in ci.yml, and token names
+   inside test fixtures all shipped as real CSS rules. */
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -8,9 +12,20 @@
 @import "@fontsource-variable/geist-mono";
 @import "@fontsource-variable/noto-sans-jp";
 
+/* Every @import has to come first, so the scan roots follow them. */
+@source "../**/*.{ts,tsx}";
+@source not "../**/*.test.{ts,tsx}";
+@source "../../index.html";
+
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
+/* Plain `@theme`, not `@theme inline`: these must exist as real custom
+   properties at runtime so `var(--container-page)`, `var(--spacing-entry)` and
+   `var(--radius-md)` resolve inside hand-written rules and arbitrary values.
+   `inline` would compile them away into literals. `static` keeps the ones no
+   utility happens to reference yet — Tailwind prunes those otherwise, and a
+   hand-written `var(--spacing-entry)` would resolve to nothing. */
+@theme static {
   --font-sans:
     "Geist Variable", "Noto Sans JP Variable", ui-sans-serif, system-ui,
     sans-serif;
@@ -20,9 +35,10 @@
   --font-mono:
     "Geist Mono Variable", "Noto Sans JP Variable", ui-monospace,
     SFMono-Regular, monospace;
-  --font-heading: var(--font-sans);
 
-  /* Type scale. Japanese body copy stays at 400/500 — 700 is never the default. */
+  /* Type scale. Japanese body copy stays at 400/500 — 700 is never the default.
+     New names here must also be registered in src/lib/utils.ts, or
+     tailwind-merge reads them as text colours and drops the size. */
   --text-label: 0.6875rem; /* 11px — mono section labels */
   --text-label--line-height: 1.4;
   --text-label--letter-spacing: 0.08em;
@@ -42,6 +58,17 @@
   --spacing-section: 3rem; /* 48px — between page sections */
   --spacing-entry: 2.5rem; /* 40px — between timeline entries */
 
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+}
+
+/* `inline` is correct here and only here: these alias theme-switchable
+   variables, so they must resolve at the use site rather than being frozen. */
+@theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -60,15 +87,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
 }
 
-/* Primitives — Color Hunt palette. Never reference these from a component;
-   they exist only to derive the semantic tokens below. */
+/* Primitives — Color Hunt palette. Components never reference these; the
+   semantic tokens below are the only consumers. */
 :root {
   --brand-navy: #30364f;
   --brand-slate: #acbac4;
@@ -79,54 +101,59 @@
 /* Light */
 :root {
   --background: #f8f8ee;
-  --foreground: #30364f;
+  --foreground: var(--brand-navy);
   --card: #f8f8ee;
-  --card-foreground: #30364f;
+  --card-foreground: var(--brand-navy);
   --popover: #fbfbf3;
-  --popover-foreground: #30364f;
-  --primary: #30364f;
-  --primary-foreground: #f0f0db;
+  --popover-foreground: var(--brand-navy);
+  --primary: var(--brand-navy);
+  --primary-foreground: var(--brand-cream);
   --secondary: #e9e7d3;
-  --secondary-foreground: #30364f;
+  --secondary-foreground: var(--brand-navy);
   --muted: #efeddd;
-  /* Navy mixed 34% toward slate. Slate itself is too light for body copy. */
-  --muted-foreground: #5a6377;
-  --accent: #e1d9bc;
-  --accent-foreground: #30364f;
+  /* Navy mixed 24% toward slate. Slate itself cannot clear AA on any of these
+     surfaces, and this has to stay legible on `--accent` (sand), the darkest
+     of them, not just on the page. */
+  --muted-foreground: #4e566b;
+  --accent: var(--brand-sand);
+  --accent-foreground: var(--brand-navy);
   --destructive: #9a3b34;
-  --border: #e6dfc6;
-  --input: #ded5b9;
-  --ring: #30364f;
+  --border: #d6cba8;
+  --input: #cdc199;
+  --ring: var(--brand-navy);
 
-  --selection: #e1d9bc;
-  --selection-foreground: #30364f;
+  --selection: var(--brand-sand);
+  --selection-foreground: var(--brand-navy);
 
   --radius: 0.3125rem; /* 5px */
 }
 
-/* Dark — derived from the same primitives, not a filter or an inversion. */
+/* Dark — derived from the same primitives, not a filter or an inversion.
+   Note that sand is `--primary` here, not `--accent`: shadcn paints `--accent`
+   as a subtle hover surface and inherits body text onto it, so a light sand
+   accent would render cream-on-sand at 1.2:1. */
 .dark {
-  --background: #30364f;
-  --foreground: #f0f0db;
-  --card: #30364f;
-  --card-foreground: #f0f0db;
+  --background: var(--brand-navy);
+  --foreground: var(--brand-cream);
+  --card: var(--brand-navy);
+  --card-foreground: var(--brand-cream);
   --popover: #383f58;
-  --popover-foreground: #f0f0db;
-  --primary: #e1d9bc;
-  --primary-foreground: #30364f;
+  --popover-foreground: var(--brand-cream);
+  --primary: var(--brand-sand);
+  --primary-foreground: var(--brand-navy);
   --secondary: #3e4661;
-  --secondary-foreground: #f0f0db;
+  --secondary-foreground: var(--brand-cream);
   --muted: #3a4159;
-  --muted-foreground: #acbac4;
-  --accent: #e1d9bc;
-  --accent-foreground: #30364f;
-  --destructive: #e8938c;
-  --border: rgb(240 240 219 / 14%);
-  --input: rgb(240 240 219 / 22%);
-  --ring: #acbac4;
+  --muted-foreground: var(--brand-slate);
+  --accent: #3e4661;
+  --accent-foreground: var(--brand-cream);
+  --destructive: #efa79f;
+  --border: #4a5270;
+  --input: #5a6382;
+  --ring: var(--brand-slate);
 
-  --selection: #e1d9bc;
-  --selection-foreground: #30364f;
+  --selection: var(--brand-sand);
+  --selection-foreground: var(--brand-navy);
 }
 
 @layer base {
@@ -169,7 +196,17 @@
     text-decoration: none;
   }
 
-  a:hover {
+  /* Guarded the way Tailwind guards its own `hover:` utilities. Without it a
+     tap on a touch device leaves the underline stuck until the next tap. */
+  @media (hover: hover) {
+    a:hover {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.25em;
+    }
+  }
+
+  a:focus-visible {
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.25em;

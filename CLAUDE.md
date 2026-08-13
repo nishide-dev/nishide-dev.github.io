@@ -64,9 +64,18 @@ surfaced to Tailwind via `@theme inline`.
 
 - Tailwind CSS v4 via `@tailwindcss/vite` — there is no `tailwind.config.js` and no PostCSS config.
 - shadcn/ui is configured in `components.json` (`base-nova` style, `neutral` base color, lucide
-  icons). Add components with `pnpm dlx shadcn@latest add <name>`.
+  icons). Add components with `pnpm dlx shadcn@latest add <name>`, then **read the diff before
+  committing**: `cssVariables: true` + `baseColor: neutral` makes the CLI append its own achromatic
+  `oklch()` ramp to `globals.css`, which lands after our `:root`/`.dark` blocks at equal specificity
+  and silently reverts the palette. `pnpm test` catches it (`expect(css).not.toContain("oklch(")`).
+  Components that expect `--sidebar-*` or `--chart-*` will also render unstyled — those token groups
+  were dropped, since the design uses neither.
 - `src/styles/globals.css` imports `shadcn/tailwind.css`, so the `shadcn` package must stay a
   runtime dependency.
+- Source scanning is pinned: `@import "tailwindcss" source(none)` plus explicit `@source` roots.
+  With automatic detection on, Tailwind scans the whole repo and compiles class names out of prose
+  and config — `contents: read` in `ci.yml` became `.contents{display:contents}`, and rewording
+  CLAUDE.md changed the shipped stylesheet.
 
 ### Design system
 
@@ -74,11 +83,25 @@ Everything lives in `src/styles/globals.css`. `src/styles/globals.test.ts` enfor
 so a violation fails `pnpm test` rather than shipping.
 
 **Colour.** Four Color Hunt primitives (`--brand-navy #30364F`, `--brand-slate #ACBAC4`,
-`--brand-sand #E1D9BC`, `--brand-cream #F0F0DB`) exist only to derive the semantic tokens. Components
-use `bg-background`, `text-muted-foreground`, `border-border` and so on — **never a hex value**, and
-never a `--brand-*` primitive. Dark mode is a separate set of semantic values, not a filter or an
-inversion. Every foreground/background pair is asserted at WCAG AA (4.5:1) in both themes; slate is
-deliberately kept off small body copy because it cannot clear that bar on the cream background.
+`--brand-sand #E1D9BC`, `--brand-cream #F0F0DB`) are the only literal colours; the semantic tokens
+reference them with `var()` wherever they are an exact match, so editing a primitive actually
+propagates. Components use `bg-background`, `text-muted-foreground`, `border-border` and so on —
+**never a hex value**, and never a `--brand-*` primitive.
+
+Dark mode is a separate set of semantic values, not a filter or an inversion. Note that sand is
+`--primary` in dark, **not** `--accent`: shadcn treats `--accent` as a subtle hover surface and
+inherits body text onto it, so a light sand accent renders cream-on-sand at 1.2:1.
+
+Every ink (`foreground`, `muted-foreground`, `destructive`) is asserted at WCAG AA against *every*
+surface (`background`, `card`, `popover`, `muted`, `secondary`, `accent`) in both themes, not just
+against the page — `text-muted-foreground` inside a `bg-accent` row is ordinary shadcn markup. That
+is why light `--muted-foreground` is navy-toward-slate rather than slate: slate cannot clear 4.5:1
+on the sand accent.
+
+**Focus** is one offset outline defined in the base layer, deliberately not per-component. The
+template's `outline-none` + `focus-visible:ring-*` painted the ring inside the button, on its own
+fill, where `--ring` and `--primary` are both navy — a 1:1 indicator. Do not reintroduce
+`outline-none`; it sits in the utilities layer and cancels the base rule.
 
 **Type.** `font-sans` is Geist → Noto Sans JP; `font-mono` is Geist Mono → Noto Sans JP. Noto is in
 *both* stacks on purpose: Geist ships no CJK, and Geist Mono additionally lacks U+2197 `↗`, which is
@@ -87,15 +110,24 @@ Reordering or dropping Noto hands those glyphs to an arbitrary system font.
 
 The scale is semantic rather than numeric — `text-label`, `text-meta`, `text-micro`, `text-body`,
 `text-title`, `text-lead` — each carrying its own line-height. Japanese body copy stays at weight
-400/500; 700 is not a default.
+400/500; 700 is not a default. **A new `--text-*` name must also be registered in
+`src/lib/utils.ts`.** tailwind-merge only knows Tailwind's stock scales, so an unregistered name
+reads as a text *colour* and `cn("text-title", "text-muted-foreground")` silently drops the size.
 
-**Layout.** `max-w-page` is the 680px measure. `mt-section` (48px) separates page sections and
-`mt-entry` (40px) separates timeline entries. Everything else uses Tailwind's default spacing scale —
-do not add tokens for one-off gaps.
+**Layout.** `max-w-page` is the 680px measure, and it must sit on its own element with padding on an
+ancestor — put both on one border-box element and the column caps at 632px instead. `mt-section`
+(48px) separates page sections and `mt-entry` (40px) separates timeline entries. Everything else
+uses Tailwind's default spacing scale — do not add tokens for one-off gaps.
+
+**Token emission.** The type/space/radius block is `@theme static`; only the `--color-*` aliases are
+`@theme inline`. `inline` compiles a token away into literals, so `var(--container-page)` would
+resolve to nothing, and without `static` Tailwind prunes whichever tokens no utility happens to
+reference yet.
 
 Fonts are self-hosted through Fontsource; there is no Google Fonts request. Noto Sans JP arrives as
 124 unicode-range subsets, so the browser fetches only the chunks a page actually needs, but all of
-them ship in `dist/` (~13MB of woff2) and their `@font-face` blocks dominate the stylesheet.
+them ship in `dist/` (~5MB of woff2 across 124 files) and their `@font-face` blocks are the bulk of
+the render-blocking stylesheet (~40KB gzipped). Revisit under the quality issue, not here.
 
 ### Code Quality
 

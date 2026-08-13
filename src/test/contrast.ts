@@ -40,27 +40,67 @@ export function contrastRatio(a: string, b: string): number {
   return (lighter + 0.05) / (darker + 0.05)
 }
 
+/** `/* ... *​/` spans, so a commented-out declaration cannot be harvested as if
+ * it were live. Without this, commenting a token out keeps its assertion green
+ * while the browser resolves nothing. */
+function stripComments(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\//g, "")
+}
+
 /**
  * Collects `--custom-property` declarations from every top-level rule matching
  * `selector`. Later declarations win, mirroring the cascade for rules of equal
  * specificity in a single stylesheet.
+ *
+ * Deliberately simple: it only understands flat blocks. A block containing a
+ * nested at-rule or selector yields nothing rather than partial results, which
+ * the light/dark key-parity test is there to catch.
  */
 export function collectCustomProperties(
   css: string,
   selector: string
 ): Record<string, string> {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const blocks = css.matchAll(
+  const blocks = stripComments(css).matchAll(
     new RegExp(`(?:^|[\\s,}])${escaped}\\s*\\{([^{}]*)\\}`, "g")
   )
 
   const tokens: Record<string, string> = {}
   for (const block of blocks) {
     for (const [, name, value] of block[1].matchAll(
-      /(--[\w-]+)\s*:\s*([^;]+);/g
+      /(--[\w-]+)\s*:\s*([^;}]+)(?:;|$)/g
     )) {
       tokens[name] = value.trim()
     }
   }
   return tokens
+}
+
+/**
+ * Follows `var(--x)` indirection so a token defined as `var(--brand-navy)`
+ * still resolves to a colour. Without this, deriving semantic tokens from the
+ * palette primitives — which is the documented rule — would break every
+ * contrast assertion.
+ */
+export function resolveToken(
+  tokens: Record<string, string>,
+  value: string | undefined,
+  seen = new Set<string>()
+): string | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+
+  const match = value.trim().match(/^var\(\s*(--[\w-]+)\s*\)$/)
+  if (!match) {
+    return value.trim()
+  }
+
+  const name = match[1]
+  if (seen.has(name)) {
+    throw new Error(`Circular var() reference at ${name}`)
+  }
+  seen.add(name)
+
+  return resolveToken(tokens, tokens[name], seen)
 }
