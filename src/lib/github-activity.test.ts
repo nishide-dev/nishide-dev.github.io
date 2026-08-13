@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   type ContributionDay,
+  type FullDateString,
   latestWeeks,
   parseContributions,
   toWeeks,
@@ -18,7 +19,20 @@ const payload = {
 }
 
 function day(date: string, count = 1): ContributionDay {
-  return { date: date as ContributionDay["date"], count, level: 1 }
+  return { date: date as FullDateString, count, level: 1 }
+}
+
+/** `count` consecutive days from `start`. */
+function run(start: string, count: number): ContributionDay[] {
+  const from = new Date(`${start}T00:00:00Z`)
+  return Array.from({ length: count }, (_, i) =>
+    day(new Date(from.getTime() + i * 86_400_000).toISOString().slice(0, 10), i)
+  )
+}
+
+/** Which weekday row each day landed in, as `YYYY-MM-DD` or `-`. */
+function rows(week: readonly (ContributionDay | null)[]) {
+  return week.map((cell) => cell?.date ?? "-")
 }
 
 describe("parseContributions", () => {
@@ -52,10 +66,12 @@ describe("parseContributions", () => {
   it.each([
     ["a malformed date", { date: "2025-8-10", count: 0, level: 0 }],
     ["a month-only date", { date: "2025-08", count: 0, level: 0 }],
+    ["a year-only date", { date: "2025", count: 0, level: 0 }],
     ["a missing count", { date: "2025-08-10", level: 0 }],
     ["a negative count", { date: "2025-08-10", count: -1, level: 0 }],
     ["a level above 4", { date: "2025-08-10", count: 1, level: 5 }],
     ["a fractional level", { date: "2025-08-10", count: 1, level: 1.5 }],
+    ["a string level", { date: "2025-08-10", count: 1, level: "1" }],
   ])("rejects an entry with %s", (_name, entry) => {
     expect(() =>
       parseContributions({ total: { lastYear: 1 }, contributions: [entry] })
@@ -73,30 +89,58 @@ describe("parseContributions", () => {
 })
 
 describe("toWeeks", () => {
-  it("pads the first week so every column starts on a Sunday", () => {
-    // 2025-08-13 is a Wednesday, so three leading cells are empty.
-    const weeks = toWeeks([day("2025-08-13"), day("2025-08-14")])
-
-    expect(weeks).toHaveLength(1)
-    expect(weeks[0].slice(0, 3)).toEqual([null, null, null])
-    expect(weeks[0][3]?.date).toBe("2025-08-13")
-    expect(weeks[0][4]?.date).toBe("2025-08-14")
+  it("puts each day in its own weekday row", () => {
+    // 2025-08-13 is a Wednesday, so rows 0–2 stay empty.
+    expect(rows(toWeeks([day("2025-08-13"), day("2025-08-14")])[0])).toEqual([
+      "-",
+      "-",
+      "-",
+      "2025-08-13",
+      "2025-08-14",
+      "-",
+      "-",
+    ])
   })
 
-  it("pads the last week too, so every column has seven rows", () => {
-    const weeks = toWeeks([day("2025-08-10")]) // a Sunday
+  it("keeps rows meaning weekday when days are missing", () => {
+    // Placing by weekday rather than pushing in sequence: a gap used to shift
+    // every later row, so a Wednesday rendered in Monday's line.
+    expect(rows(toWeeks([day("2026-07-05"), day("2026-07-08")])[0])).toEqual([
+      "2026-07-05",
+      "-",
+      "-",
+      "2026-07-08",
+      "-",
+      "-",
+      "-",
+    ])
+  })
+
+  it("does not scramble a descending payload", () => {
+    const ascending = toWeeks(run("2026-07-05", 7))
+    const descending = toWeeks([...run("2026-07-05", 7)].reverse())
+
+    expect(rows(descending[0])).toEqual(rows(ascending[0]))
+  })
+
+  it("pads both ends, so every column has seven rows", () => {
+    const weeks = toWeeks(run("2026-07-08", 3)) // Wed–Fri
 
     expect(weeks).toHaveLength(1)
     expect(weeks[0]).toHaveLength(7)
-    expect(weeks[0].filter(Boolean)).toHaveLength(1)
+    expect(weeks[0].filter(Boolean)).toHaveLength(3)
+  })
+
+  it("starts a new column on each Sunday", () => {
+    const weeks = toWeeks(run("2026-07-08", 14)) // Wed through two Sundays
+
+    expect(weeks).toHaveLength(3)
+    expect(weeks[1][0]?.date).toBe("2026-07-12")
+    expect(weeks[2][0]?.date).toBe("2026-07-19")
   })
 
   it("keeps every day exactly once", () => {
-    const days = Array.from({ length: 369 }, (_, i) => {
-      const date = new Date(Date.UTC(2025, 7, 10 + i))
-      return day(date.toISOString().slice(0, 10))
-    })
-    const weeks = toWeeks(days)
+    const weeks = toWeeks(run("2025-08-10", 369))
 
     expect(weeks.flat().filter(Boolean)).toHaveLength(369)
     expect(weeks.every((week) => week.length === 7)).toBe(true)
@@ -108,18 +152,14 @@ describe("toWeeks", () => {
 })
 
 describe("latestWeeks", () => {
-  const weeks = toWeeks(
-    Array.from({ length: 70 }, (_, i) => {
-      const date = new Date(Date.UTC(2025, 7, 10 + i))
-      return day(date.toISOString().slice(0, 10))
-    })
-  )
+  const weeks = toWeeks(run("2025-08-10", 70))
 
   it("keeps the most recent weeks, not the oldest", () => {
     const kept = latestWeeks(weeks, 3)
 
     expect(kept).toHaveLength(3)
     expect(kept.at(-1)).toEqual(weeks.at(-1))
+    expect(kept[0]).not.toEqual(weeks[0])
   })
 
   it("never returns nothing", () => {

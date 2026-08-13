@@ -1,11 +1,10 @@
 import {
+  ACTIVITY_BLOCK_HEIGHT,
   ContributionGrid,
-  GRID_HEIGHT,
 } from "@/components/activity/contribution-grid"
 import { useContributions } from "@/components/activity/use-contributions"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { ExternalLink } from "@/components/external-link"
-import type { ContributionCalendar } from "@/lib/github-activity"
-import { formatTimelineDate } from "@/lib/timeline"
 
 /**
  * The contribution calendar, as its own section between the intro and the
@@ -14,7 +13,9 @@ import { formatTimelineDate } from "@/lib/timeline"
  *
  * The third-party API is allowed to fail. Loading and failure both keep the
  * heading and the GitHub link, and both reserve the graph's height, so the
- * timeline below never jumps.
+ * timeline below never jumps. The boundary sits *inside* the section for the
+ * same reason: wrapping the section would take the heading and the link with it
+ * and leave the page's outline missing a level 2.
  */
 export function GitHubActivity({ login }: { login: string }) {
   const state = useContributions(login)
@@ -31,34 +32,19 @@ export function GitHubActivity({ login }: { login: string }) {
         <ExternalLink href={`https://github.com/${login}`} label="GitHub" />
       </div>
 
-      {/* Reserved whatever the state, so the page does not reflow when the
-          request settles. The month row adds ~18px below the grid. */}
-      <div style={{ minHeight: GRID_HEIGHT + 38 }}>
+      <div style={{ minHeight: ACTIVITY_BLOCK_HEIGHT }}>
         {state.status === "ready" ? (
-          <ContributionGrid
-            days={state.calendar.days}
-            label={summarise(state.calendar)}
-          />
-        ) : (
-          <p className="mt-5 text-body text-muted-foreground">
-            {state.status === "error"
-              ? "GitHub の contribution graph を読み込めませんでした。"
-              : ""}
+          <ErrorBoundary section="Activity">
+            <ContributionGrid calendar={state.calendar} />
+          </ErrorBoundary>
+        ) : state.status === "error" ? (
+          // `status` so a reader already past this point is told, rather than
+          // being left with a silent hole.
+          <p className="pt-5 text-body text-muted-foreground" role="status">
+            GitHub の contribution graph を読み込めませんでした。
           </p>
-        )}
+        ) : null}
       </div>
     </section>
   )
-}
-
-/** What someone who never sees the cells gets instead. */
-export function summarise(calendar: ContributionCalendar): string {
-  const { days, total } = calendar
-  if (days.length === 0) {
-    return "GitHub の contribution はありません。"
-  }
-
-  const from = formatTimelineDate({ start: days[0].date })
-  const to = formatTimelineDate({ start: days[days.length - 1].date })
-  return `GitHub の contribution graph。${from} から ${to} までの合計 ${total.toLocaleString("en-US")} 件。`
 }

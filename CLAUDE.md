@@ -102,30 +102,59 @@ link with no label, and two links sharing an href.
 ### GitHub activity
 
 `src/components/activity/` renders the contribution calendar between the intro and the timeline.
-`src/lib/github-activity.ts` is the fetch and reshape layer, deliberately separate: the components
-take a `ContributionCalendar`, never a URL, so this can become a build-time step without touching
-anything that renders.
+`src/lib/github-activity.ts` holds the fetch and the reshaping, with no components in it, so a
+build-time step could replace `fetchContributions` and leave the rest alone. The *section* still owns
+the request — moving to build time means changing its props, not that file.
 
 The endpoint is `github-contributions-api.jogruber.de`, called from the browser with **no token** —
 this is the client bundle, so a token would be readable by anyone. `parseContributions` narrows the
 response rather than trusting it; a third-party API is not a contract, and `unknown` cast into a
 component surfaces as `undefined` in the DOM instead of as a failure the caller can handle.
+`FullDateString` is narrower than `TimelineDateString` for the same reason the latter exists: the
+grid reads a weekday off every date, and `2026-03` yields `NaN` and misplaces a row rather than
+throwing.
 
 **A third party going down is a normal outcome, not an exception.** `useContributions` is
-three-valued and `error` is as ordinary as `ready`; both keep the heading and the GitHub link, both
-reserve the graph's height so the timeline never jumps, and the reason is `console.warn`ed once.
+three-valued and `error` is as ordinary as `ready`. Both states keep the heading and the GitHub link
+and both reserve the graph's height, so nothing below moves when the request settles. Three details
+make that true rather than approximately true:
 
-Bands are `--activity-0..4`, mixed from the palette primitives with `color-mix` so editing one moves
-the whole ramp. Navy in light, **sand in dark** — the page is already navy there, so the scale has to
-climb away from the background rather than into it. `LEVEL_CLASS` spells the class names out because
-Tailwind scans for literal strings: `bg-activity-${level}` compiles to nothing.
+- **There is an 8s timeout.** A connection that opens and never answers is otherwise a permanent,
+  completely silent hole — the browser's own limit is minutes to never.
+- **The success path checks `aborted` too.** Aborting does not un-settle a promise whose response has
+  already arrived, so without it a superseded request can paint one account's graph under another's
+  heading.
+- **The `ErrorBoundary` sits inside the section.** Wrapping the section would take the heading, the
+  link and a level-2 out of the outline with it.
+
+`toWeeks` keys columns by the Sunday that opens each week and places every day at its own weekday
+row. Neither is derived from position in the input: nothing checks that the payload is contiguous or
+ascending, and pushing in sequence would let one missing day shift every later row with nothing to
+signal it.
+
+Bands are `--activity-0..4`. Bands 1–4 are `color-mix`ed from the palette primitives so editing one
+moves them together; band 0 is `--muted`, which is a literal, so it does not follow. Navy in light,
+**sand in dark** — the page is already navy there, so the scale has to climb away from the background
+rather than into it. `LEVEL_CLASS` spells the class names out because Tailwind scans for literal
+strings: `bg-activity-${level}` compiles to nothing.
 
 Cell size is fixed and the *week count* is what responds — a narrow viewport drops the oldest weeks
-rather than scrolling or shrinking cells past legibility. 52 weeks at 680px, 27 at 390px, measured.
+rather than scrolling or shrinking cells past legibility. Measured 52 columns at 1280px, 48 at 680px,
+27 at 390px, 15 at 240px, with no document overflow at any width. The one measurement happens before
+the `ResizeObserver` guard, so a browser without one still gets it; skipping it renders all 53 weeks
+at 686px inside a 680px measure.
 
-The grid is one `role="img"` with a summary label (range and total), and the cells are `aria-hidden`.
-Per-day counts are hover-only, which is a deliberate trade: the alternatives are 371 tab stops or
-371 announced table cells, and neither serves a reader better than the summary does.
+The hovered day is read out in **one fixed spot**, not in a tooltip anchored to the cell. The label
+is ~200px against a 350px column on a phone, so any column-anchored position overflows the measure
+for some cell — and a predictable place is easier to read than one that moves. The band it occupies
+is `pt-` on the positioned wrapper, not `mt-` on the grid: a margin collapses straight out and leaves
+the readout painted over the first row of cells.
+
+The grid is one `role="img"` whose label describes **the weeks actually drawn**, not the whole
+payload — a phone shows about six months, and announcing a year of it would make the alternative text
+non-equivalent to the image. The API's own total is used only when nothing was sliced away.
+Per-day counts are hover-only, a deliberate trade: the alternatives are a tab stop or an announced
+table cell for every day in the range, and neither serves a reader better than the summary does.
 
 ### Timeline UI
 
@@ -329,8 +358,13 @@ Vitest with the jsdom environment and React Testing Library. Co-locate tests nex
   actually exercised. An in-memory `Storage` replaces it, which also keeps runs deterministic across
   Node versions.
 - **`fetch`.** Replaced with an immediate rejection, so no test can reach the network. A test that
-  needs a response stubs it; everything else gets the same shape as an outage, which the activity
-  section already handles.
+  needs a response stubs it with `vi.stubGlobal` and restores it itself — unlike `localStorage`, this
+  one is installed at module scope and not reinstalled by `beforeEach`.
+
+jsdom reports `clientWidth: 0` for everything and has no `ResizeObserver`, so anything that measures
+itself is unreachable there until both are stubbed. `github-activity.test.tsx` stubs
+`HTMLElement.prototype.clientWidth`; without it the responsive branch never runs and its assertions
+pass on the unmeasured fallback.
 
 Storage, the OS preference and the `<html>` class are all global, so `beforeEach` reinstalls them —
 reinstalls rather than clears, since a test may have swapped in a throwing stub.

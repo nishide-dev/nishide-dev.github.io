@@ -29,9 +29,9 @@ export function App() {
             </div>
           </section>
 
-          <ErrorBoundary section="Activity">
-            <GitHubActivity login={profile.github} />
-          </ErrorBoundary>
+          {/* The section owns its own boundary, so a failure keeps the heading
+              and the GitHub link rather than taking the whole section. */}
+          <GitHubActivity login={profile.github} />
 
           {timeline.length > 0 && (
             <section aria-labelledby="timeline-heading" className="mt-section">

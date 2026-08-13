@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react"
 
 import {
+  type ContributionCalendar,
   type ContributionDay,
   type ContributionLevel,
+  type ContributionWeek,
   latestWeeks,
   toWeeks,
 } from "@/lib/github-activity"
@@ -24,7 +26,20 @@ const LEVEL_CLASS: Record<ContributionLevel, string> = {
 const CELL = 10
 const GAP = 3
 const COLUMN = CELL + GAP
-export const GRID_HEIGHT = 7 * COLUMN - GAP
+const GRID_HEIGHT = 7 * COLUMN - GAP
+
+/** The band the tooltip occupies, as *padding* on the positioned wrapper. A
+ * margin on the grid would collapse straight out of it and leave the tooltip
+ * painted on top of the first row of cells. */
+const TOOLTIP_BAND = 20
+
+/** Month names are absolutely positioned, so the row itself lays out as 0px —
+ * this is the space their line boxes paint into. */
+const MONTH_ROW = 6 + 18
+
+/** What the section reserves, so nothing below it moves when the request
+ * settles. Exported so the reservation cannot drift from the layout. */
+export const ACTIVITY_BLOCK_HEIGHT = TOOLTIP_BAND + GRID_HEIGHT + MONTH_ROW
 
 const MONTHS = [
   "Jan",
@@ -48,63 +63,73 @@ function useVisibleWeekCount(total: number) {
 
   useLayoutEffect(() => {
     const element = ref.current
-    if (!element || typeof ResizeObserver !== "function") {
+    if (!element) {
       return undefined
     }
 
     const measure = () => {
       const width = element.clientWidth
       if (width === 0) return
-      setCount(Math.max(1, Math.min(total, Math.floor((width + GAP) / COLUMN))))
+      setCount(Math.max(1, Math.floor((width + GAP) / COLUMN)))
     }
 
+    // Before the guard: a browser without ResizeObserver still deserves the one
+    // measurement it can have. Without it the grid renders every week, which at
+    // 53 columns is 686px inside a 680px measure.
     measure()
+
+    if (typeof ResizeObserver !== "function") {
+      return undefined
+    }
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [total])
+  }, [])
 
   return { ref, count }
 }
 
-type Hovered = { day: ContributionDay; column: number } | null
+type Hovered = ContributionDay | null
 
 export function ContributionGrid({
-  days,
-  label,
+  calendar,
 }: {
-  days: readonly ContributionDay[]
-  /** Summary of the whole graph, for anyone who never sees the cells. */
-  label: string
+  calendar: ContributionCalendar
 }) {
-  const allWeeks = toWeeks(days)
+  const allWeeks = toWeeks(calendar.days)
   const { ref, count } = useVisibleWeekCount(allWeeks.length)
   const weeks = latestWeeks(allWeeks, count)
   const [hovered, setHovered] = useState<Hovered>(null)
 
   return (
-    <div className="relative" ref={ref}>
-      {/* One tooltip, positioned from the column index — no per-cell node, and
-          nothing that can overflow the 680px measure. */}
+    // `pt-` not `mt-` on the grid: padding does not margin-collapse, so the
+    // tooltip's band stays inside the positioned box.
+    <div className="relative pt-5" ref={ref}>
+      {/* A readout in one fixed place rather than a tooltip anchored to the
+          cell. The label is ~200px wide against a 350px column on a phone, so
+          any column-anchored position overflows the measure for some cell; and
+          a predictable spot is easier to read than one that moves under the
+          pointer. `truncate` is belt and braces. */}
       <p
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute -top-1 whitespace-nowrap font-mono text-meta text-muted-foreground",
+          "pointer-events-none absolute top-0 left-0 max-w-full truncate font-mono text-meta text-muted-foreground",
           hovered ? "opacity-100" : "opacity-0"
         )}
-        style={{
-          left: `min(${hovered ? hovered.column * COLUMN : 0}px, calc(100% - 12rem))`,
-        }}
       >
-        {hovered ? describeDay(hovered.day) : " "}
+        {hovered ? describeDay(hovered) : " "}
       </p>
 
-      <div className="mt-5 flex gap-x-[3px]" role="img" aria-label={label}>
+      <div
+        aria-label={summarise(calendar, weeks)}
+        className="flex gap-x-[3px]"
+        role="img"
+      >
         {weeks.map((week, column) => (
           <div
             className="flex flex-col gap-y-[3px]"
-            // Weeks have no identity of their own beyond their position, and
-            // the array is rebuilt on every resize.
+            // Weeks have no identity beyond their position, and the array is
+            // rebuilt on every resize.
             // biome-ignore lint/suspicious/noArrayIndexKey: see above
             key={column}
           >
@@ -113,14 +138,15 @@ export function ContributionGrid({
                 aria-hidden="true"
                 className={cn(
                   "rounded-[2px]",
+                  // A day outside the range is not a level-0 day: level 0 is a
+                  // real band, and painting the padding with it would read as
+                  // activity that has no date.
                   day ? LEVEL_CLASS[day.level] : "bg-transparent"
                 )}
                 // Same: a padding cell has no identity at all.
                 // biome-ignore lint/suspicious/noArrayIndexKey: see above
                 key={row}
-                onMouseEnter={
-                  day ? () => setHovered({ day, column }) : undefined
-                }
+                onMouseEnter={day ? () => setHovered(day) : undefined}
                 onMouseLeave={day ? () => setHovered(null) : undefined}
                 style={{ height: CELL, width: CELL }}
               />
@@ -153,24 +179,52 @@ function describeDay(day: ContributionDay): string {
   return `${day.count} ${unit} · ${formatTimelineDate({ start: day.date })}`
 }
 
+/**
+ * What someone who never sees the cells gets instead — describing the weeks
+ * actually drawn, not the whole payload. A narrow viewport shows roughly six
+ * months, and announcing a year of it would make the alternative text
+ * non-equivalent to the image.
+ */
+export function summarise(
+  calendar: ContributionCalendar,
+  weeks: readonly ContributionWeek[]
+): string {
+  const visible = weeks.flatMap((week) =>
+    week.filter((day): day is ContributionDay => day !== null)
+  )
+  if (visible.length === 0) {
+    return "GitHub の contribution はありません。"
+  }
+
+  // The API's own total is authoritative when nothing was dropped; once weeks
+  // are sliced away it would overstate what is on screen.
+  const complete = visible.length === calendar.days.length
+  const total = complete
+    ? calendar.total
+    : visible.reduce((sum, day) => sum + day.count, 0)
+
+  const from = formatTimelineDate({ start: visible[0].date })
+  const to = formatTimelineDate({ start: visible[visible.length - 1].date })
+  return `GitHub の contribution graph。${from} から ${to} までの合計 ${total.toLocaleString("en-US")} 件。`
+}
+
 /** The month name, on the first column that belongs to a new month. */
 function monthLabel(
-  weeks: readonly (readonly (ContributionDay | null)[])[],
+  weeks: readonly ContributionWeek[],
   column: number
 ): string | null {
-  const first = weeks[column].find((day) => day !== null)
-  if (!first) return null
-
-  const month = parseDateString(first.date).month as number
+  // Column 0's month almost always began before the visible range — always,
+  // once weeks have been sliced off — so a label there would mark a boundary
+  // that is not in the graph.
   if (column === 0) {
-    // The leading column is usually a partial month; labelling it puts the name
-    // over cells that do not belong to it.
     return null
   }
 
+  const first = weeks[column].find((day) => day !== null)
   const previous = weeks[column - 1].find((day) => day !== null)
-  if (!previous) return null
+  if (!first || !previous) return null
 
+  const month = parseDateString(first.date).month as number
   return parseDateString(previous.date).month === month
     ? null
     : MONTHS[month - 1]
