@@ -4,8 +4,9 @@ import type { TimelineEvent } from "@/lib/timeline"
  * The timeline content, kept entirely out of the UI.
  *
  * Order here does not matter — `sortTimelineEvents` puts it newest-first, and
- * the tests run `assertValidTimeline` over this array; CLAUDE.md lists exactly
- * what that covers.
+ * the tests run `assertValidTimeline` over this array. That function in
+ * `src/lib/timeline.ts` is the authority on what is checked; read it rather than
+ * a prose copy, which is what this comment used to point at.
  *
  * Conventions:
  *

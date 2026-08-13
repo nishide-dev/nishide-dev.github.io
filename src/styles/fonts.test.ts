@@ -27,7 +27,7 @@ import {
  *   font the reader has, or to tofu. That is the same class of bug as the OG
  *   card's subset 58 and the reason this file exists.
  * - **No waste** catches an over-generated one, i.e. the 124-subset import this
- *   replaced — 82% of the render-blocking stylesheet's gzipped bytes for 90
+ *   replaced — 84% of the render-blocking stylesheet's gzipped bytes for 90
  *   subsets no character needs.
  *
  * Coverage and no-waste say something true about the *site*; equivalence only says
