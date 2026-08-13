@@ -35,23 +35,34 @@ describe("App", () => {
     expect(links).toHaveLength(profile.links.length)
     for (const [index, link] of links.entries()) {
       expect(link).toHaveAttribute("href", profile.links[index].href)
-      expect(link).toHaveAttribute("target", "_blank")
-      // Without noreferrer the opened page gets a handle on this one.
-      expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"))
     }
+  })
+
+  it("opens http links in a new tab, safely", () => {
+    renderApp()
+    const link = screen.getByRole("link", { name: /^GitHub/ })
+
+    expect(link).toHaveAttribute("target", "_blank")
+    // Without noreferrer the opened page gets a handle on this one.
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"))
+  })
+
+  it("hands a mailto to the mail client instead of a tab", () => {
+    renderApp()
+    const link = screen.getByRole("link", { name: /^Email/ })
+
+    // target=_blank on a mailto leaves a blank tab behind in some browsers.
+    expect(link).not.toHaveAttribute("target")
+    expect(link).toHaveAccessibleName("Email （メールを送信）")
   })
 
   it("marks external links with ↗ decoratively", () => {
     renderApp()
-    const link = within(
-      screen.getByRole("navigation", { name: "外部リンク" })
-    ).getAllByRole("link")[0]
+    const link = screen.getByRole("link", { name: /^GitHub/ })
 
     // The arrow carries no information a screen reader needs; the wording does.
     expect(link.textContent).toContain("↗")
-    expect(link).toHaveAccessibleName(
-      `${profile.links[0].label} （新しいタブで開く）`
-    )
+    expect(link).toHaveAccessibleName("GitHub （新しいタブで開く）")
   })
 
   it("gives the decorative avatar an empty alt", () => {

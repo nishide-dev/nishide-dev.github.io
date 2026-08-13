@@ -5,11 +5,12 @@
 
 export type ProfileLink = {
   label: string
+  /** `https:` opens in a new tab; `mailto:` hands off to a mail client. */
   href: string
 }
 
 export const profile = {
-  name: "Nishide",
+  name: "Ryusei Nishide",
   avatar: {
     src: "/github-avatar.png",
     /** Empty: the name sits right next to it, so announcing it twice is noise. */
@@ -20,12 +21,13 @@ export const profile = {
     "Microbase でソフトウェア開発に携わりながら、知識データ工学研究室で自然言語処理・知識表現に関する研究に取り組んでいます。",
   ],
   /**
-   * Only links whose URL is confirmed. Scholar / ORCID / ACL Anthology and a
-   * contact address are registered under the content issue, once the
-   * identifiers are known — a placeholder that 404s is worse than an absence.
+   * Only links whose target is confirmed. Scholar / ORCID / ACL Anthology are
+   * registered under the content issue once the identifiers are known — a
+   * placeholder that 404s is worse than an absence.
    */
   links: [
     { label: "GitHub", href: "https://github.com/nishide-dev" },
+    { label: "Email", href: "mailto:nishide.dev@gmail.com" },
   ] satisfies ProfileLink[],
   location: "Japan",
 } as const
