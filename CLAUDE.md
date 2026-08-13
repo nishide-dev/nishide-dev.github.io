@@ -100,6 +100,24 @@ Project references: `tsconfig.json` → `tsconfig.app.json` (`src/`, DOM libs) a
 Vitest with the jsdom environment and React Testing Library. Co-locate tests next to the code
 (`App.test.tsx`, `components/ui/button.test.tsx`).
 
+## Deployment
+
+GitHub Pages, from GitHub Actions — there is no Jekyll step and no `gh-pages` branch.
+
+- `.github/workflows/ci.yml` runs on **pull requests only**: lint → typecheck → test → build.
+- `.github/workflows/deploy.yml` runs on **pushes to `main`** (and `workflow_dispatch`). Its
+  `build` job repeats the same four gates, then uploads `dist/` via `upload-pages-artifact`; a
+  separate `deploy` job (`needs: build`) runs `deploy-pages`. Splitting the jobs is what makes a
+  red run on main say whether the code or the deployment broke.
+
+Neither workflow pins a pnpm `version:` — `pnpm/action-setup` reads `packageManager` from
+package.json. Pinning it there as well makes the action hard-error with
+`Multiple versions of pnpm specified`.
+
+This repo is the `nishide-dev.github.io` **user site**, so it is served from `/`. Do not set a Vite
+`base` — the built `index.html` must keep referencing `/assets/...`. There is no `404.html` SPA
+fallback, because the site is deliberately a single page; adding a router means adding one.
+
 ## Roadmap
 
 The rebuild is tracked in issue [#1](https://github.com/nishide-dev/nishide-dev.github.io/issues/1).
