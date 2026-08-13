@@ -15,14 +15,14 @@ export const profile = {
     alt: "",
   },
   /**
-   * "修士2年" goes stale on its own — there is no enrolment date here to derive
-   * it from, and computing an academic year would silently roll it over every
-   * April whether or not that is still true. It lives in this one string on
-   * purpose: a data file is the cheapest place to correct it.
+   * Deliberately names no organisation and no year. The timeline below carries
+   * every affiliation with its dates, so repeating them here would be a second
+   * place to keep current — and nothing in these two lines goes stale on its
+   * own, which the earlier draft's "修士2年" did.
    */
   intro: [
-    "ソフトウェアエンジニア / 大学院生。豊田工業大学大学院 修士2年、知識データ工学研究室で自然言語処理・知識表現に関する研究に取り組んでいます。",
-    "「食わず嫌いをしない」ことを大事にしていて、フロントエンドからインフラ、AI まで、課題解決に必要な技術は領域を問わず学んでいます。",
+    "ソフトウェアエンジニア / 大学院生。",
+    "ソフトウェア開発に携わりながら、自然言語処理・知識表現に関する研究に取り組んでいます。",
   ],
   /**
    * Only links whose target is confirmed. Scholar / ORCID are registered once

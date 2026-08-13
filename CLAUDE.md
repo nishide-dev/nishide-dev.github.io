@@ -116,9 +116,9 @@ nothing, so the two affiliation links read `toyota-ti.ac.jp/Lab/kde` and `microg
 Entries that share a month share one date label, and their order within it is the `id` tie-break, not
 a judgement about which matters more. Nothing hand-orders the timeline.
 
-Anything time-dependent in prose — "修士2年" in `profile.intro` — lives in a data file precisely
-because it has to be corrected by hand. There is no enrolment date to derive it from, and rolling an
-academic year over every April would be a guess dressed as a fact.
+`profile.intro` names no organisation and no year. The timeline carries every affiliation with its
+dates, so repeating them in the intro would be a second place to keep current — and nothing in those
+two lines goes stale on its own, which an earlier draft's "修士2年" did.
 
 ### GitHub activity
 
