@@ -4,23 +4,24 @@ import type { TimelineEvent } from "@/lib/timeline"
  * The timeline content, kept entirely out of the UI.
  *
  * Order here does not matter — `sortTimelineEvents` puts it newest-first, and
- * `assertValidTimeline` (run over this array in the tests) reports duplicate
- * ids, malformed dates, backwards ranges, empty or duplicated detail lines,
- * links with no label, and dangling `relatedTo` references, all at once.
+ * the tests run `assertValidTimeline` over this array; CLAUDE.md lists exactly
+ * what that covers.
  *
  * Conventions:
  *
  * - Dates are `YYYY`, `YYYY-MM` or `YYYY-MM-DD`; precision follows the shape,
- *   so do not restate it. **Never widen an unconfirmed date into a specific
- *   month** — store the coarser value instead. A year-precision date renders as
- *   `2026年` and sorts at the start of that year.
+ *   so do not restate it. **Never sharpen an unconfirmed date**: if the month is
+ *   unknown store `YYYY`, if the day is unknown store `YYYY-MM`. A coarse label
+ *   does not flag itself — `2026年` looks like any other date and sorts as
+ *   January 1st — so this is a discipline, not something the UI will catch.
  * - `precision: "fiscal-year"` renders 年度, and only on a `YYYY` value: a 年度
  *   runs April to March, so store the fiscal year itself rather than a month
  *   inside it.
  * - Omit `end` for a point in time. Use `"ongoing"` for something still
  *   running. An omitted `end` does not mean ongoing.
  * - `relatedTo` is written once, on whichever side reads more naturally;
- *   `resolveRelated` closes the edge from both directions.
+ *   `resolveRelated` closes the edge from both directions. **Not rendered in
+ *   v1** — the model carries it so a later detail view can.
  * - `description` is text, not HTML. Say what was done rather than how
  *   impressive it was, and keep proper nouns in their official spelling —
  *   `microbase` is lowercase.
@@ -51,8 +52,10 @@ export const timeline: TimelineEvent[] = [
     relatedTo: ["tti-kde"],
   },
   {
-    // Same month as the EACL presentation, so the two share one date label.
-    // Which of them comes first is the `id` tie-break, not a judgement.
+    // Renders the same label as the EACL presentation and lands next to it, so
+    // only the first of the two prints a date. Which one that is comes down to
+    // the `id` tie-break, not a judgement. Give either an `end` and the labels
+    // stop matching, at which point both print.
     id: "anlp-2026-award",
     date: { start: "2026-03" },
     type: "award",
@@ -60,7 +63,11 @@ export const timeline: TimelineEvent[] = [
     description:
       "「マルチモーダル知識ハイパーグラフを利用した生物医学分野における知識拡張情報抽出」で、言語処理学会第32回年次大会の若手奨励賞を受賞しました。",
     relatedTo: ["tti-kde"],
-    links: [{ label: "Award", href: "https://www.anlp.jp/award/nenji.html" }],
+    // The `#y2026` fragment lands on 第32回; without it the reader arrives at
+    // the top of a list running back to 1996.
+    links: [
+      { label: "Award", href: "https://www.anlp.jp/award/nenji.html#y2026" },
+    ],
   },
   {
     id: "pksha-2025",
@@ -97,8 +104,9 @@ export const timeline: TimelineEvent[] = [
     title: "知識データ工学研究室",
     description:
       "2024年4月より所属。自然言語処理・知識表現に関する研究に取り組んでいます。",
-    // The label is the destination rather than the title again — repeating the
-    // heading one line below it says nothing.
+    // The label names the destination rather than repeating the heading one
+    // line above it. A preference, not a rule — `Award` and `ProjectLINKS`
+    // above are the labels the content issue prescribed.
     links: [
       {
         label: "toyota-ti.ac.jp/Lab/kde",

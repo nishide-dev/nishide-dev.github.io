@@ -5,11 +5,11 @@ import { ThemeProvider } from "@/components/theme-provider"
 import type { TimelineEvent } from "@/lib/timeline"
 
 /**
- * `src/data/timeline.ts` is empty until the content issue lands, so nothing
- * else in the suite ever executes the App's Timeline section — deleting
- * `<Timeline/>` from App.tsx would leave the rest of the tests green. These
- * mock the data module, which is why they live apart from App.test.tsx: the
- * mock has to be hoisted above the App import.
+ * The cases the real data cannot show: no entries at all, and an entry the
+ * formatter rejects. `App.test.tsx` renders the real array unmocked and asserts
+ * every entry appears; this file mocks the data module so the other two states
+ * can be driven — which is why it lives apart, since the mock has to be hoisted
+ * above the App import.
  */
 const events: TimelineEvent[] = []
 

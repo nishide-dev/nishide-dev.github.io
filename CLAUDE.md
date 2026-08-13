@@ -94,31 +94,44 @@ and would otherwise emit that month twice, with duplicate React keys.
 edge from both directions, so the hub an event hangs off does not resolve to nothing.
 
 `assertValidTimeline` runs over the real data in the tests and reports **every** problem at once,
-each named with its event id — duplicate or empty ids, empty titles, malformed dates,
-over-declared precision, backwards ranges, self-references, duplicated and dangling `relatedTo`,
-plus the things the UI cannot defend against on its own: an empty or duplicated `details` line, a
-link with no label, and two links sharing an href. The suite also asserts the array is **non-empty**,
-since every other check over it loops and would pass vacuously.
+each named with its event id — duplicate or empty ids, empty titles, malformed dates, over-declared
+precision, backwards ranges, self-references, duplicated and dangling `relatedTo`, empty `details`
+lines and links with no label. (One exception to "at once": a malformed date and a backwards range in
+the *same* event cannot both be reported, because the range check sits inside the `try` the date
+throws out of.)
+
+It deliberately does **not** reject duplicate `details` lines or two links sharing an href. The
+renderer keys both lists by index precisely because those are legitimate — two award citations can
+read the same, an abstract and a PDF can share a URL — and `timeline.test.tsx` asserts it keeps them.
+There is no scheme check either: every inhabitant of `Href` already satisfies one, so it could only
+fire for a value cast past the type.
 
 ### Writing timeline content
 
 The content issue is the authority on what may be said. Two rules carry real weight:
 
-- **Never widen an unconfirmed date.** A month you are not sure of is stored as `YYYY`, which renders
-  `2026年` and sorts at the *start* of that year — visibly out of place among dated neighbours, which
-  is the point. Ask, then narrow it.
-- **Say what was done, not how impressive it was**, and keep proper nouns exact. `microbase` is
-  lowercase; the affiliation is 豊田工業大学大学院 and the lab is 知識データ工学研究室.
+- **Never sharpen an unconfirmed date.** If the month is not confirmed, store `YYYY`; if the day is
+  not confirmed, store `YYYY-MM`. Ask, then narrow it. Note that a coarse label does *not* flag
+  itself: `2026年` renders in the same style as `2026.03`, and its sort key is January 1st, so it ties
+  with a January entry and `id` decides which shows first. The rule is a discipline, not a trap the
+  UI sets.
+- **Say what was done, not how impressive it was**, and keep proper nouns exact — `microbase` is
+  lowercase, and 知識データ工学研究室 is the lab's full name.
 
-A link label names the *destination*, not the entry — repeating the heading one line below it says
-nothing, so the two affiliation links read `toyota-ti.ac.jp/Lab/kde` and `microgeo.biz`.
+Prefer a link label that names the *destination* rather than repeating the heading one line above it,
+which is why the affiliations read `toyota-ti.ac.jp/Lab/kde` and `microgeo.biz`. It is a preference,
+not a rule: `Award` and `ProjectLINKS` are the labels the content issue prescribed, and where a
+destination and an entry genuinely share a name there is nothing to fix.
 
-Entries that share a month share one date label, and their order within it is the `id` tie-break, not
-a judgement about which matters more. Nothing hand-orders the timeline.
+**Adjacent entries whose rendered labels are identical print that label once**, and the second keeps
+it as `sr-only`. Sharing a month is not enough — `2024.04` and `2024.04 — 現在` are different labels,
+so the 技育CAMP entry and the lab affiliation both print their own. Which of two identically-labelled
+entries comes first is the `id` tie-break, not a judgement. Nothing hand-orders the timeline.
 
-`profile.intro` names no organisation and no year. The timeline carries every affiliation with its
-dates, so repeating them in the intro would be a second place to keep current — and nothing in those
-two lines goes stale on its own, which an earlier draft's "修士2年" did.
+`profile.intro` names no organisation and no year, which `profile.test.ts` asserts. The timeline
+carries the affiliations worth dating, so repeating one in the intro would be a second place to keep
+current. It decays far more slowly than the earlier draft's "修士2年" — but 大学院生 is still a
+fixed-term status, so it is not exempt.
 
 ### GitHub activity
 

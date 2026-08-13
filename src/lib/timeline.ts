@@ -6,7 +6,10 @@
  * groups inside a component.
  */
 
-import { type Link, linkBehaviour } from "@/lib/links"
+// No `linkBehaviour` check here: every inhabitant of `Href` already satisfies
+// one of its branches, so a scheme test could only ever fire for a value that
+// was cast past the type.
+import type { Link } from "@/lib/links"
 
 export type TimelineEventType =
   | "affiliation"
@@ -411,32 +414,24 @@ export function assertValidTimeline(events: readonly TimelineEvent[]): void {
       problems.push(describe(event, (error as Error).message))
     }
 
-    // The renderer keys these lists by their content, and empty entries render
-    // as a dangling bullet or a link with no accessible name. Both are things
-    // the UI cannot defend against on its own.
-    const details = event.details ?? []
-    if (new Set(details).size !== details.length) {
-      problems.push(describe(event, "details contains a duplicate line"))
-    }
-    if (details.some((detail) => detail.trim() === "")) {
-      problems.push(describe(event, "details contains an empty line"))
+    // Empty entries are what the UI cannot defend against: a blank `details`
+    // line renders as a dangling em-dash, and a link with no label renders as a
+    // bare `↗` with no accessible name.
+    //
+    // *Duplicates* are not checked, deliberately. An earlier version rejected
+    // them on the grounds that the renderer keyed these lists by content — it
+    // keys by index, and `timeline.test.tsx` asserts that two award citations
+    // reading the same and an abstract sharing a PDF's href both survive. The
+    // validator was forbidding what the renderer is tested to support.
+    for (const detail of event.details ?? []) {
+      if (detail.trim() === "") {
+        problems.push(describe(event, "details contains an empty line"))
+      }
     }
 
-    const links = event.links ?? []
-    if (new Set(links.map((link) => link.href)).size !== links.length) {
-      problems.push(describe(event, "links contains a duplicate href"))
-    }
-    for (const link of links) {
+    for (const link of event.links ?? []) {
       if (link.label.trim() === "") {
         problems.push(describe(event, `link "${link.href}" has no label`))
-      }
-      // An unrecognised shape renders with no arrow and no announcement, which
-      // is right for a same-origin path and silently wrong for anything else.
-      const { opensTab, hint } = linkBehaviour(link.href)
-      if (!(opensTab || hint !== null || /^[/#]/.test(link.href))) {
-        problems.push(
-          describe(event, `link "${link.href}" has no known scheme`)
-        )
       }
     }
   }

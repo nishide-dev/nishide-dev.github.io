@@ -15,10 +15,13 @@ export const profile = {
     alt: "",
   },
   /**
-   * Deliberately names no organisation and no year. The timeline below carries
-   * every affiliation with its dates, so repeating them here would be a second
-   * place to keep current — and nothing in these two lines goes stale on its
-   * own, which the earlier draft's "修士2年" did.
+   * Deliberately names no organisation and no year — `profile.test.ts` asserts
+   * both. The timeline carries the affiliations worth dating, so repeating one
+   * here would be a second place to keep current.
+   *
+   * This decays far more slowly than the earlier draft's "修士2年", which was
+   * wrong every April, but 大学院生 is still a fixed-term status: it becomes
+   * false at 修了 with nobody having edited anything.
    */
   intro: [
     "ソフトウェアエンジニア / 大学院生。",

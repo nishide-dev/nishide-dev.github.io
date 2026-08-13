@@ -354,8 +354,44 @@ describe("assertValidTimeline", () => {
       [event("x", { start: "2026-03", precision: "fiscal-year" })],
       /April to March/,
     ],
+    [
+      // Renders as a dangling em-dash with nothing after it.
+      "an empty details line",
+      [{ ...event("x", { start: "2026-03" }), details: ["賞", "  "] }],
+      /details contains an empty line/,
+    ],
+    [
+      // Renders as a bare `↗` whose accessible name is only the hint.
+      "a link with no label",
+      [
+        {
+          ...event("x", { start: "2026-03" }),
+          links: [{ label: " ", href: "https://example.com" as const }],
+        },
+      ],
+      /has no label/,
+    ],
   ])("rejects %s", (_name, events, message) => {
     expect(() => assertValidTimeline(events)).toThrow(message)
+  })
+
+  it("allows the duplicates the renderer is built to keep", () => {
+    // Two award citations can read the same, and an abstract can share a PDF's
+    // href. The renderer keys both lists by index for exactly this reason, and
+    // `timeline.test.tsx` asserts it keeps them — so rejecting them here would
+    // forbid what the UI supports.
+    expect(() =>
+      assertValidTimeline([
+        {
+          ...event("x", { start: "2026-03" }),
+          details: ["同じ文言", "同じ文言"],
+          links: [
+            { label: "Abstract", href: "https://example.com/p" },
+            { label: "PDF", href: "https://example.com/p" },
+          ],
+        },
+      ])
+    ).not.toThrow()
   })
 
   it("names the offending event in a date error", () => {
@@ -384,45 +420,67 @@ describe("assertValidTimeline", () => {
 })
 
 describe("the real timeline data", () => {
-  it("is not empty", () => {
-    // Every assertion below loops over `timeline`, so an empty array would make
-    // all of them pass while checking nothing.
-    expect(timeline.length).toBeGreaterThan(0)
+  const byId = new Map(timeline.map((entry) => [entry.id, entry]))
+
+  it("holds every entry the content issue calls for", () => {
+    // Spelled out rather than counted: a count passes when one entry is
+    // replaced by another, and every loop below would pass over an empty array.
+    expect([...byId.keys()].sort()).toEqual([
+      "anlp-2026-award",
+      "eacl-2026-accepted",
+      "eacl-2026-presentation",
+      "giiku-camp-2024",
+      "microbase",
+      "pksha-2025",
+      "project-links",
+      "tti-kde",
+    ])
   })
 
   it("is valid", () => {
+    // Carries the well-formedness checks: dates, ids, titles, ranges,
+    // relations, empty detail lines and unlabelled links.
     expect(() => assertValidTimeline(timeline)).not.toThrow()
   })
 
-  it("formats every event without leaking undefined", () => {
-    for (const entry of timeline) {
-      const label = formatTimelineDate(entry.date)
-      expect(label, entry.id).not.toContain("undefined")
-      expect(label, entry.id).not.toContain("NaN")
-    }
+  it.each([
+    ["eacl-2026-presentation", "2026.03"],
+    ["anlp-2026-award", "2026.03"],
+    ["eacl-2026-accepted", "2026.01"],
+    ["pksha-2025", "2025.09"],
+    ["project-links", "2025.04 — 2026.03"],
+    ["giiku-camp-2024", "2024.04"],
+    ["tti-kde", "2024.04 — 現在"],
+    ["microbase", "2022.11 — 現在"],
+  ])("renders %s as %s", (id, label) => {
+    // The confirmed dates, written out. Reading them back off `entry.date`
+    // would pass for whatever the file happens to hold, and the two `ongoing`
+    // affiliations are the only thing pinning the three-valued `end`.
+    expect(formatTimelineDate(byId.get(id)?.date as never)).toBe(label)
   })
 
-  it("gives every event a title and a date that reads", () => {
-    for (const entry of timeline) {
-      expect(entry.title.trim(), entry.id).not.toBe("")
-      expect(formatTimelineDate(entry.date), entry.id).toMatch(/\d/)
-    }
+  it.each([
+    ["eacl-2026-presentation", "https://aclanthology.org/2026.eacl-long.81/"],
+    ["anlp-2026-award", "https://www.anlp.jp/award/nenji.html#y2026"],
+    ["project-links", "https://www.mlit.go.jp/links/"],
+    ["tti-kde", "https://www.toyota-ti.ac.jp/Lab/kde/ja/"],
+    ["microbase", "https://www.microgeo.biz/jp"],
+  ])("points %s at %s", (id, href) => {
+    // Also spelled out: a shape check like `/^https:/` passes for
+    // `https://example.com/nope`.
+    expect(byId.get(id)?.links?.map((link) => link.href)).toEqual([href])
   })
 
-  it("points every link at an absolute, reachable-looking URL", () => {
-    for (const entry of timeline) {
-      for (const link of entry.links ?? []) {
-        expect(link.href, `${entry.id}: ${link.label}`).toMatch(
-          /^https:\/\/[^/]+\.[^/]/
-        )
-        expect(link.label.trim(), entry.id).not.toBe("")
-      }
-    }
-  })
-
-  it("can be sorted and grouped without the UI", () => {
-    const groups = groupTimelineEvents(timeline)
-    expect(new Set(groups.map((g) => g.key)).size).toBe(groups.length)
-    expect(groups.flatMap((g) => g.events)).toHaveLength(timeline.length)
+  it("orders newest first, with the two March entries together", () => {
+    expect(sortTimelineEvents(timeline).map((entry) => entry.id)).toEqual([
+      "anlp-2026-award",
+      "eacl-2026-presentation",
+      "eacl-2026-accepted",
+      "pksha-2025",
+      "project-links",
+      "giiku-camp-2024",
+      "tti-kde",
+      "microbase",
+    ])
   })
 })
