@@ -181,6 +181,54 @@ describe("typography", () => {
         `text-${size} is unknown to tailwind-merge, so cn() will drop it`
       ).toContain(`"${size}"`)
     }
+    // One-directional by construction: it iterates the CSS side, so a token
+    // that disappears takes its own assertion with it. `utils.test.ts` covers
+    // the behaviour; the sizes below cover the values.
+  })
+
+  /** `--text-x: 1rem`, without the `--line-height` / `--letter-spacing` keys. */
+  const sizes = Object.entries(theme).flatMap(([key, value]) => {
+    const name = key.match(/^--text-([a-z]+)$/)?.[1]
+    return name ? [[name, value] as const] : []
+  })
+
+  it("gives the name a step nothing else occupies", () => {
+    // The h1 was `text-title` — the same 15px as all eight timeline headings —
+    // which is the bug this token exists to fix. Pinning the value matters as
+    // much as pinning the name: setting it back to 0.9375rem restores the bug
+    // while every other assertion here still passes.
+    expect(Object.fromEntries(sizes).name).toBe("1.25rem")
+    expect(
+      sizes.filter(([name]) => name !== "name").map(([, value]) => value),
+      "another token moved onto the name's step"
+    ).not.toContain("1.25rem")
+  })
+
+  it("keeps every step distinct except the two deliberate pairs", () => {
+    // `label`/`meta` differ by letter-spacing and `title`/`lead` by
+    // line-height, so those two collisions are intentional. A third would be
+    // the h1 bug again — a name that produces no visible difference from its
+    // neighbour. Reported all at once, like assertValidTimeline.
+    const byValue = new Map<string, string[]>()
+    for (const [name, value] of sizes) {
+      byValue.set(value, [...(byValue.get(value) ?? []), name])
+    }
+
+    expect(
+      [...byValue.values()]
+        .filter((names) => names.length > 1)
+        .map((names) => names.sort().join("+"))
+        .sort()
+    ).toEqual(["label+meta", "lead+title"])
+
+    // And the properties that make those two pairs distinguishable at all.
+    // Without them the comment in globals.css disclaims an oversight it has
+    // become.
+    expect(theme["--text-label--letter-spacing"]).toBeDefined()
+    expect(theme["--text-meta--letter-spacing"]).toBeUndefined()
+    expect(theme["--text-title--line-height"]).not.toBe(
+      theme["--text-lead--line-height"]
+    )
   })
 })
 

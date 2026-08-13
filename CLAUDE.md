@@ -372,14 +372,26 @@ weight 400/500; 700 is not a default. **A new `--text-*` name must also be regis
 reads as a text *colour* and `cn("text-title", "text-muted-foreground")` silently drops the size —
 `globals.test.ts` fails if one is missing.
 
-Sizes ramp **11 / 12 / 14 / 15 / 16 / 20** and every step is used. Only `label` and `meta` share a
-size, and they differ by `letter-spacing`: tracking is what makes a section label read as a label and
-a date read as a date. Semantic names are worth having, but a name that produces no visible difference
-from its neighbour is a name for something the design does not actually distinguish — which is how the
-`h1` ended up at `text-title`, **byte-identical to all eight timeline headings and smaller than the
-24px avatar beside it**, so the page's own title read as a caption. `text-name` (20px) is the one step
-nothing else uses, and `text-lead` moved to 16px so the intro sits above a timeline heading rather
-than level with it. Restrained is not the same as flat.
+Sizes ramp **11 / 12 / 14 / 15 / 20**, and `text-name` (20px) is the one step nothing else occupies.
+Two pairs share a size, deliberately, and in each case another property does the work:
+`label`/`meta` differ by `letter-spacing`, `title`/`lead` by `line-height` (1.6 for a heading, 1.8 for
+a paragraph). **`globals.test.ts` pins exactly those two pairs**, so a third collision fails — along
+with the value of `--text-name`, and the properties that make the two pairs distinguishable at all.
+
+That enforcement is the point, because the bug it prevents is invisible: the `h1` had been
+`text-title`, **byte-identical to all eight timeline headings and smaller than the 24px avatar beside
+it**, so the page's own title read as a caption. A semantic name that produces no visible difference
+from its neighbour is a name for something the design does not actually distinguish. Restrained is not
+the same as flat.
+
+`App.test.tsx` asserts the `h1` carries `text-name`. jsdom loads no stylesheet so the computed size is
+out of reach, but the class is not — and without that assertion, switching the `h1` back to
+`text-title` reverted the whole change with lint, typecheck and 287 tests green.
+
+**16px for the lead was tried and reverted.** Breaking the `title`/`lead` tie by size pushed the
+second intro paragraph onto a second line of 110px at the full 680px measure, splitting 取り組む across
+the break — precisely what `word-break: auto-phrase` is set to avoid. A tie broken by leading costs
+nothing; one broken by size cost a line.
 
 **Layout.** `max-w-page` is the 680px measure, and it must sit on its own element with padding on an
 ancestor — put both on one border-box element and the column caps at 632px instead. `mt-section`
