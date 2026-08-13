@@ -14,9 +14,11 @@ export function PlainList({
   children,
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"ul"> & { as?: "ul" | "ol" }) {
+}: Omit<React.ComponentPropsWithoutRef<"ul">, "role"> & { as?: "ul" | "ol" }) {
   return (
-    <Tag className={className} role="list" {...props}>
+    // The spread comes first, and `role` is off the prop type: a component
+    // whose whole purpose is that role must not let a caller hand it away.
+    <Tag {...props} className={className} role="list">
       {children}
     </Tag>
   )

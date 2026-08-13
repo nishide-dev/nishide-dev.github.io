@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/error-boundary"
 import { ExternalLinks } from "@/components/layout/external-links"
 import { SiteFooter } from "@/components/layout/site-footer"
 import { SiteHeader } from "@/components/layout/site-header"
@@ -47,7 +48,9 @@ export function App() {
               >
                 Timeline
               </h2>
-              <Timeline events={timeline} />
+              <ErrorBoundary section="Timeline">
+                <Timeline events={timeline} />
+              </ErrorBoundary>
             </section>
           )}
         </main>

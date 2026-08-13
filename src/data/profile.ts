@@ -1,12 +1,9 @@
+import type { Link } from "@/lib/links"
+
 /**
  * Identity and intro copy, kept out of the components so wording can change
  * without touching JSX. Paragraphs are plain text, not HTML.
  */
-
-export type ProfileLink = {
-  label: string
-  href: string
-}
 
 export const profile = {
   name: "Ryusei Nishide",
@@ -27,6 +24,6 @@ export const profile = {
   links: [
     { label: "GitHub", href: "https://github.com/nishide-dev" },
     { label: "Email", href: "mailto:nishide.dev@gmail.com" },
-  ] as const satisfies readonly ProfileLink[],
+  ] as const satisfies readonly Link[],
   location: "Japan",
 } as const

@@ -6,6 +6,8 @@
  * groups inside a component.
  */
 
+import { type Link, linkBehaviour } from "@/lib/links"
+
 export type TimelineEventType =
   | "affiliation"
   | "project"
@@ -39,10 +41,8 @@ export type TimelineDateString =
  */
 export type TimelinePrecision = "day" | "month" | "year" | "fiscal-year"
 
-export type TimelineLink = {
-  label: string
-  href: string
-}
+/** Same shape as a profile link, and rendered by the same component. */
+export type TimelineLink = Link
 
 /** Not rendered in v1. The model carries it so a later detail view can. */
 export type TimelineMedia = {
@@ -281,7 +281,10 @@ export function compareTimelineEvents(
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
-export function sortTimelineEvents(events: TimelineEvent[]): TimelineEvent[] {
+/** Copies before sorting, so a `readonly` source array is fine to hand over. */
+export function sortTimelineEvents(
+  events: readonly TimelineEvent[]
+): TimelineEvent[] {
   return [...events].sort(compareTimelineEvents)
 }
 
@@ -312,7 +315,9 @@ function groupKey(date: TimelineDate): string {
  * separated by a year-precision event and would otherwise emit that month
  * twice — a repeated heading and duplicate React keys.
  */
-export function groupTimelineEvents(events: TimelineEvent[]): TimelineGroup[] {
+export function groupTimelineEvents(
+  events: readonly TimelineEvent[]
+): TimelineGroup[] {
   const groups = new Map<string, TimelineGroup>()
 
   for (const event of sortTimelineEvents(events)) {
@@ -348,7 +353,7 @@ export function groupTimelineEvents(events: TimelineEvent[]): TimelineGroup[] {
  * timeline.
  */
 export function resolveRelated(
-  events: TimelineEvent[],
+  events: readonly TimelineEvent[],
   event: TimelineEvent
 ): TimelineEvent[] {
   const outgoing = new Set(event.relatedTo ?? [])
@@ -369,7 +374,7 @@ function describe(event: TimelineEvent, problem: string): string {
  * typo fails CI rather than reaching a page. Reports every problem at once —
  * a content author should not spend one CI round-trip per typo.
  */
-export function assertValidTimeline(events: TimelineEvent[]): void {
+export function assertValidTimeline(events: readonly TimelineEvent[]): void {
   const problems: string[] = []
   const seen = new Set<string>()
 
@@ -404,6 +409,35 @@ export function assertValidTimeline(events: TimelineEvent[]): void {
       }
     } catch (error) {
       problems.push(describe(event, (error as Error).message))
+    }
+
+    // The renderer keys these lists by their content, and empty entries render
+    // as a dangling bullet or a link with no accessible name. Both are things
+    // the UI cannot defend against on its own.
+    const details = event.details ?? []
+    if (new Set(details).size !== details.length) {
+      problems.push(describe(event, "details contains a duplicate line"))
+    }
+    if (details.some((detail) => detail.trim() === "")) {
+      problems.push(describe(event, "details contains an empty line"))
+    }
+
+    const links = event.links ?? []
+    if (new Set(links.map((link) => link.href)).size !== links.length) {
+      problems.push(describe(event, "links contains a duplicate href"))
+    }
+    for (const link of links) {
+      if (link.label.trim() === "") {
+        problems.push(describe(event, `link "${link.href}" has no label`))
+      }
+      // An unrecognised shape renders with no arrow and no announcement, which
+      // is right for a same-origin path and silently wrong for anything else.
+      const { opensTab, hint } = linkBehaviour(link.href)
+      if (!(opensTab || hint !== null || /^[/#]/.test(link.href))) {
+        problems.push(
+          describe(event, `link "${link.href}" has no known scheme`)
+        )
+      }
     }
   }
 
