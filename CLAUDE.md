@@ -35,13 +35,17 @@ index.html              # Vite entry; also inlines the pre-hydration theme scrip
 src/
 ├─ components/
 │  ├─ layout/           # site-header, external-links, site-footer
+│  ├─ timeline/         # timeline, timeline-item
 │  ├─ ui/               # shadcn/ui components (Base UI primitives)
+│  ├─ external-link.tsx # the one link treatment (↗ + screen-reader wording)
+│  ├─ plain-list.tsx    # list that keeps its semantics under Preflight
 │  ├─ theme-provider.tsx
 │  └─ theme-toggle.tsx
 ├─ data/
 │  ├─ profile.ts        # identity, intro copy, external links
 │  └─ timeline.ts       # timeline content — data only, never JSX
 ├─ lib/
+│  ├─ links.ts          # href scheme → link behaviour
 │  ├─ timeline.ts       # timeline types + pure format/sort/group helpers
 │  └─ utils.ts          # cn()
 ├─ styles/globals.css   # Tailwind v4 entry + design tokens
@@ -89,6 +93,34 @@ edge from both directions, so the hub an event hangs off does not resolve to not
 `assertValidTimeline` runs over the real data in the tests and reports **every** problem at once,
 each named with its event id — duplicate or empty ids, empty titles, malformed dates,
 over-declared precision, backwards ranges, self-references, duplicated and dangling `relatedTo`.
+
+### Timeline UI
+
+`src/components/timeline/` renders one flat `<ol>`: date / marker / content on desktop, date stacked
+above marker + content below `md`. An affiliation and an award that happened during it are peers in
+the markup, exactly as they are in the data. No card, no badge, no nested list, no scroll reveal.
+
+**Repeated dates are suppressed by comparing the rendered label with the one above, not by calling
+`groupTimelineEvents`.** The two differ: an affiliation and a point event can share the month
+`2024-04` while reading `2024.04 — 現在` and `2024.04`, and grouping on the period would print one
+of those labels for both. Comparing labels can only ever hide a genuine duplicate, and — unlike
+grouping — it never reorders anything. Sorting guarantees identical labels land adjacent, because
+`sortKey` floors every date to the same instant within a period.
+
+A suppressed date is not deleted: it moves into the content cell as `sr-only`, so **every** entry
+still announces its own date. On desktop the date cell stays in the grid (empty) so the marker and
+content keep their columns; on mobile it is `display: none` so the rows close up.
+
+The connecting line reaches `-bottom-entry` past its cell. The gap between entries is the `<li>`'s
+padding, which sits outside the grid row, so a line bounded by the cell stops short of the next dot.
+
+`PlainList` exists because Preflight sets `list-style: none`, and WebKit responds by dropping list
+semantics from the accessibility tree — VoiceOver reads the entries as loose text. `role="list"` is
+redundant per spec and load-bearing in practice, so it lives in one component rather than being
+re-argued (and re-suppressed) at every call site.
+
+`ExternalLink` is the site's one link treatment, so the `↗` and the screen-reader wording cannot
+drift apart between the profile row and a timeline entry.
 
 ### Theming
 
