@@ -55,19 +55,36 @@ in JSX; `src/lib/timeline.ts` holds the types and pure functions that format, so
 There is no CMS, no fetch layer and no markdown parser — and `description` carries text, not HTML.
 
 Dates are `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, and **precision follows the string's shape** — do not
-restate it. `precision` exists to display something *coarser* than what is stored (and to declare
-`fiscal-year`, since 2025年 and 2025年度 are the same digits); declaring something finer throws.
+restate it. `precision` exists to display something *coarser* than what is stored; declaring
+something finer throws rather than inventing a month or a day. `fiscal-year` is the one precision
+that must be declared (2025年 and 2025年度 are the same digits) and it is only valid on a bare
+`YYYY`: a 年度 runs April to March, so store the fiscal year itself rather than a month inside it.
 
 `end` is three-valued and this matters: **omitted means a point in time**, `"ongoing"` means still
 running, a date means a closed period. The obvious-looking alternative — omitted means ongoing —
-cannot express an award, which would render as `2026.03 — 現在`.
+cannot express an award, which would render as `2026.03 — 現在`. `end` may be *coarser* than
+`start`, and is formatted at its own granularity; borrowing the start's precision reads a month off
+a value that has none and prints the literal string `undefined`.
 
-Sorting is newest-first from the date alone, with `id` breaking ties so the order is total and
-stable. A year-precision date sorts as the *start* of its year. Never hand-order events in a
-component.
+Dates are template-literal typed rather than `string`, so `end: "onging"` is a compile error with a
+did-you-mean rather than a throw during render. It is a coarse filter — `parseDateString` still
+rejects `2026-3`.
 
-`assertValidTimeline` is run over the real data in the tests, so duplicate ids, malformed dates,
-backwards ranges, self-references and dangling `relatedTo` ids fail CI rather than reaching a page.
+Sorting is newest-first from the date alone, with `id` breaking ties **by code unit, not
+`localeCompare`** — that returns 0 for strings differing only by Unicode normalisation, and its
+order varies with the runtime's ICU data. A year-precision date sorts as the *start* of its year.
+Never hand-order events in a component.
+
+Grouping is keyed by a map, not by comparing against the previous group: dates of differing
+precision tie in the sort, so two events of one month can end up separated by a year-precision event
+and would otherwise emit that month twice, with duplicate React keys.
+
+`relatedTo` is written once, on whichever side reads more naturally; `resolveRelated` closes the
+edge from both directions, so the hub an event hangs off does not resolve to nothing.
+
+`assertValidTimeline` runs over the real data in the tests and reports **every** problem at once,
+each named with its event id — duplicate or empty ids, empty titles, malformed dates,
+over-declared precision, backwards ranges, self-references, duplicated and dangling `relatedTo`.
 
 ### Theming
 

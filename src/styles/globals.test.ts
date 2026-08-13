@@ -192,7 +192,7 @@ describe("palette", () => {
   })
 
   it("does not leave the shadcn neutral defaults in place", () => {
-    // The template shipped an achromatic oklch ramp; the rebuild is Cream x Navy.
+    // The template shipped an achromatic oklch ramp; this is Cream x Navy.
     expect(css).not.toContain("oklch(")
   })
 
