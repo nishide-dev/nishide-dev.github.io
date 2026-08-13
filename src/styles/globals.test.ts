@@ -139,10 +139,20 @@ describe("typography", () => {
     for (const pkg of [
       "@fontsource-variable/geist",
       "@fontsource-variable/geist-mono",
-      "@fontsource-variable/noto-sans-jp",
     ]) {
       expect(css, `missing @import for ${pkg}`).toContain(`@import "${pkg}"`)
     }
+
+    // Noto arrives through the generated fonts.css instead of the package
+    // entry, which declares all 124 subsets. Still self-hosted, still no Google
+    // Fonts request — the files come out of the same package.
+    expect(css, "missing @import for the generated Noto subsets").toContain(
+      '@import "./fonts.css"'
+    )
+    expect(
+      readFileSync(join(SRC, "styles/fonts.css"), "utf8"),
+      "fonts.css must serve Noto out of the Fontsource package"
+    ).toContain("@fontsource-variable/noto-sans-jp/files/")
   })
 
   it("leads the sans stack with Geist and backs it with Noto", () => {
@@ -215,6 +225,34 @@ describe("palette", () => {
       offenders.map((f) => f.replace(`${SRC}/`, "")),
       "components must use semantic tokens, not colour literals"
     ).toEqual([])
+  })
+})
+
+describe("animation utilities", () => {
+  it("uses none, which is what lets tw-animate-css stay uninstalled", () => {
+    // Tailwind compiles an unrecognised utility to nothing at all, so adding a
+    // shadcn component that animates would silently render without animation
+    // rather than failing. This is the failure that would otherwise be silent:
+    // if it fires, either drop the class or reinstall `tw-animate-css` and
+    // restore its @import at the top of globals.css.
+    const needsPackage =
+      /\b-?(?:animate-in|animate-out|fade-in|fade-out|zoom-in|zoom-out|slide-in-from|slide-out-to|spin-in|spin-out|blur-in|blur-out|fill-mode|play-state|paused|running)\b/
+
+    const files = appSourceFiles()
+    expect(files.length, "found no app sources to scan").toBeGreaterThan(0)
+
+    const offenders = files.filter((file) =>
+      needsPackage.test(stripCommentsAndAnchors(readFileSync(file, "utf8")))
+    )
+
+    expect(
+      offenders.map((f) => f.replace(`${SRC}/`, "")),
+      "these need tw-animate-css, which this project does not install"
+    ).toEqual([])
+
+    // And the import really is gone, so the test above is load-bearing. Matched
+    // as an @import: the comment above it in globals.css names the package.
+    expect(css).not.toMatch(/@import\s+["']tw-animate-css["']/)
   })
 })
 
