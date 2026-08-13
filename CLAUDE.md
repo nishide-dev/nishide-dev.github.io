@@ -12,11 +12,15 @@ pnpm build       # tsc -b && vite build → dist/
 pnpm preview     # Serve the built dist/ locally
 pnpm lint        # biome check .
 pnpm format      # biome check --write .
-pnpm typecheck   # tsc --noEmit
+pnpm typecheck   # tsc -b --noEmit
 pnpm test        # vitest run
 ```
 
 Every PR must pass `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`.
+
+`typecheck` must stay `tsc -b` (not plain `tsc`): the root `tsconfig.json` is solution-style
+(`"files": []` + `references`), and plain `tsc` does not follow project references — it would check
+zero files and pass vacuously.
 
 ## Architecture Overview
 
@@ -48,7 +52,10 @@ Dark mode is class-based (`.dark` on `<html>`). Two pieces cooperate:
   flash.
 - `src/components/theme-provider.tsx` owns the runtime state, persists to `localStorage` under the
   `theme` key, follows `prefers-color-scheme` when set to `system`, syncs across tabs, and binds a
-  `d` keypress shortcut to toggle themes.
+  `d` keydown shortcut to toggle themes.
+
+The two duplicate the same decision, so a change to the storage key, the default theme, or the
+class names has to be made in both places — nothing links them mechanically.
 
 Color tokens live in `src/styles/globals.css` as CSS custom properties under `:root` and `.dark`,
 surfaced to Tailwind via `@theme inline`.
@@ -68,10 +75,14 @@ Biome handles both linting and formatting (`biome.json`):
 - Double quotes, semicolons as needed, ES5 trailing commas
 - 2-space indentation, 80 character line width
 - `noUnusedVariables` / `noUnusedImports` are errors
-- `useSortedClasses` auto-sorts Tailwind classes in `cn()` and `cva()` calls
+- `useSortedClasses` sorts Tailwind classes in `cn()` and `cva()` calls. It is **warn**-level and
+  `biome check` exits 0 on warnings, so CI does not fail on it — it is fixed by `pnpm format` and
+  by the pre-commit hook, not by the Lint gate.
 - `useIgnoreFile` is on, so `.gitignore` also governs what Biome sees
 
-lefthook runs `biome check --write` on staged files at pre-commit.
+lefthook runs `biome check --write` on staged files at pre-commit. Note that the `prepare` script
+guards on `[ ! -d .git ]`, and `.git` is a *file* inside a git worktree — so working in a worktree
+silently gets no pre-commit hook. Run `pnpm lint` manually there.
 
 ### Path Aliases
 

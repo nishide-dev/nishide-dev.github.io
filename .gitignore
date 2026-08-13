@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# pnpm is the only supported package manager
+package-lock.json
+yarn.lock
+
 # testing
 /coverage
 
