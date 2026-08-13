@@ -139,10 +139,20 @@ describe("typography", () => {
     for (const pkg of [
       "@fontsource-variable/geist",
       "@fontsource-variable/geist-mono",
-      "@fontsource-variable/noto-sans-jp",
     ]) {
       expect(css, `missing @import for ${pkg}`).toContain(`@import "${pkg}"`)
     }
+
+    // Noto arrives through the generated fonts.css instead of the package
+    // entry, which declares all 124 subsets. Still self-hosted, still no Google
+    // Fonts request — the files come out of the same package.
+    expect(css, "missing @import for the generated Noto subsets").toContain(
+      '@import "./fonts.css"'
+    )
+    expect(
+      readFileSync(join(SRC, "styles/fonts.css"), "utf8"),
+      "fonts.css must serve Noto out of the Fontsource package"
+    ).toContain("@fontsource-variable/noto-sans-jp/files/")
   })
 
   it("leads the sans stack with Geist and backs it with Noto", () => {
@@ -215,6 +225,61 @@ describe("palette", () => {
       offenders.map((f) => f.replace(`${SRC}/`, "")),
       "components must use semantic tokens, not colour literals"
     ).toEqual([])
+  })
+})
+
+describe("animation utilities", () => {
+  it("uses none, which is what lets tw-animate-css stay uninstalled", () => {
+    // Tailwind compiles an unrecognised utility to nothing at all, so adding a
+    // shadcn component that animates would silently render unanimated rather than
+    // failing the build. If this fires: drop the class, or reinstall
+    // `tw-animate-css`, restore its @import at the top of globals.css, and delete
+    // this test — the assertion at the end of it rejects that import by design.
+    const needsPackage = [
+      // The enter/exit families.
+      /\b-?(?:animate-in|animate-out)\b/,
+      /\b-?(?:fade|zoom|spin|blur)-(?:in|out)\b/,
+      /\bslide-(?:in-from|out-to)-/,
+      // The named keyframes, which tw-animate-css declares as @theme variables
+      // rather than utilities — and which are exactly what shadcn's Accordion,
+      // Collapsible, Sidebar and Input-OTP ship.
+      /\banimate-(?:accordion|collapsible)-(?:up|down)\b/,
+      /\banimate-caret-blink\b/,
+      // The animation-property utilities. Anchored to their value shapes: bare
+      // `repeat-` also matches inside Tailwind's own `bg-repeat-x`, and bare
+      // `running`/`paused` are ordinary English — `const running = …` used to fail
+      // this test and tell you to install an animation package.
+      /\banimation-duration-/,
+      /\brepeat-(?:\d|infinite|\[)/,
+      /\bdirection-(?:normal|reverse|alternate)\b/,
+      /\bfill-mode-(?:none|forwards|backwards|both)\b/,
+      /\bplay-state-(?:running|paused)\b/,
+    ]
+
+    const files = appSourceFiles()
+    expect(files.length, "found no app sources to scan").toBeGreaterThan(0)
+
+    // index.html is in the scan because globals.css declares it as an @source, so
+    // Tailwind compiles class names out of it and appSourceFiles() does not reach
+    // it on its own.
+    const scanned = [...files, join(SRC, "..", "index.html")]
+
+    const offenders = scanned.filter((file) => {
+      const source = stripCommentsAndAnchors(readFileSync(file, "utf8"))
+      return needsPackage.some((pattern) => pattern.test(source))
+    })
+
+    expect(
+      offenders.map((f) => f.replace(`${SRC}/`, "")),
+      "these need tw-animate-css, which this project does not install"
+    ).toEqual([])
+
+    // And the import really is gone, so the check above is load-bearing. Matched
+    // as an @import against comment-stripped CSS: globals.css names the package in
+    // prose right where the import used to be.
+    expect(stripCommentsAndAnchors(css)).not.toMatch(
+      /@import\s+["']tw-animate-css["']/
+    )
   })
 })
 
