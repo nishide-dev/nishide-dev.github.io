@@ -150,6 +150,13 @@
 
   body {
     @apply bg-background font-sans text-body text-foreground antialiased;
+
+    /* Japanese line breaking. `strict` stops breaks before small kana and the
+       prolonged sound mark; `auto-phrase` breaks at phrase boundaries instead
+       of arbitrary characters. Browsers without auto-phrase fall back to
+       normal, so this is a progressive enhancement. */
+    line-break: strict;
+    word-break: auto-phrase;
   }
 
   ::selection {
