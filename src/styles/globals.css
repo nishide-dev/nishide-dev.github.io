@@ -1,127 +1,191 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+
+/* Latin and numerals. Geist ships no CJK glyphs, so Japanese text falls through
+   to Noto Sans JP by design — the two are ordered, not duplicated. */
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/noto-sans-jp";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans:
+    "Geist Variable", "Noto Sans JP Variable", ui-sans-serif, system-ui,
+    sans-serif;
+  /* Noto is in the mono stack too, and not by accident: Geist Mono covers
+     neither Japanese nor U+2197 "↗", and both appear in mono contexts —
+     `2024.04 — 現在` dates and external links. */
+  --font-mono:
+    "Geist Mono Variable", "Noto Sans JP Variable", ui-monospace,
+    SFMono-Regular, monospace;
   --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
+
+  /* Type scale. Japanese body copy stays at 400/500 — 700 is never the default. */
+  --text-label: 0.6875rem; /* 11px — mono section labels */
+  --text-label--line-height: 1.4;
+  --text-label--letter-spacing: 0.08em;
+  --text-meta: 0.6875rem; /* 11px — mono dates */
+  --text-meta--line-height: 1.4;
+  --text-micro: 0.75rem; /* 12px — mono small links */
+  --text-micro--line-height: 1.5;
+  --text-body: 0.875rem; /* 14px — body, timeline description */
+  --text-body--line-height: 1.75;
+  --text-title: 0.9375rem; /* 15px — timeline title, name */
+  --text-title--line-height: 1.6;
+  --text-lead: 0.9375rem; /* 15px — intro */
+  --text-lead--line-height: 1.8;
+
+  /* The one-column measure. Everything else uses Tailwind's default scale. */
+  --container-page: 42.5rem; /* 680px */
+  --spacing-section: 3rem; /* 48px — between page sections */
+  --spacing-entry: 2.5rem; /* 40px — between timeline entries */
+
   --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-  --font-sans: "Geist Variable", sans-serif;
 }
 
+/* Primitives — Color Hunt palette. Never reference these from a component;
+   they exist only to derive the semantic tokens below. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --brand-navy: #30364f;
+  --brand-slate: #acbac4;
+  --brand-sand: #e1d9bc;
+  --brand-cream: #f0f0db;
 }
 
+/* Light */
+:root {
+  --background: #f8f8ee;
+  --foreground: #30364f;
+  --card: #f8f8ee;
+  --card-foreground: #30364f;
+  --popover: #fbfbf3;
+  --popover-foreground: #30364f;
+  --primary: #30364f;
+  --primary-foreground: #f0f0db;
+  --secondary: #e9e7d3;
+  --secondary-foreground: #30364f;
+  --muted: #efeddd;
+  /* Navy mixed 34% toward slate. Slate itself is too light for body copy. */
+  --muted-foreground: #5a6377;
+  --accent: #e1d9bc;
+  --accent-foreground: #30364f;
+  --destructive: #9a3b34;
+  --border: #e6dfc6;
+  --input: #ded5b9;
+  --ring: #30364f;
+
+  --selection: #e1d9bc;
+  --selection-foreground: #30364f;
+
+  --radius: 0.3125rem; /* 5px */
+}
+
+/* Dark — derived from the same primitives, not a filter or an inversion. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #30364f;
+  --foreground: #f0f0db;
+  --card: #30364f;
+  --card-foreground: #f0f0db;
+  --popover: #383f58;
+  --popover-foreground: #f0f0db;
+  --primary: #e1d9bc;
+  --primary-foreground: #30364f;
+  --secondary: #3e4661;
+  --secondary-foreground: #f0f0db;
+  --muted: #3a4159;
+  --muted-foreground: #acbac4;
+  --accent: #e1d9bc;
+  --accent-foreground: #30364f;
+  --destructive: #e8938c;
+  --border: rgb(240 240 219 / 14%);
+  --input: rgb(240 240 219 / 22%);
+  --ring: #acbac4;
+
+  --selection: #e1d9bc;
+  --selection-foreground: #30364f;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  :root {
+    color-scheme: light;
   }
+
+  /* Without this the UA still paints scrollbars, form controls and autofill
+     light while the page is near-black. */
+  .dark {
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans text-body text-foreground antialiased;
+  }
+
+  ::selection {
+    background-color: var(--selection);
+    color: var(--selection-foreground);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+  }
+
+  :focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* biome-ignore-start lint/complexity/noImportantStyles: a global motion
+       kill-switch has to outrank the utility and inline declarations it is
+       overriding, which is the one case !important is the correct tool. */
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+    /* biome-ignore-end lint/complexity/noImportantStyles: see above */
   }
 }

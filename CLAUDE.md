@@ -68,6 +68,35 @@ surfaced to Tailwind via `@theme inline`.
 - `src/styles/globals.css` imports `shadcn/tailwind.css`, so the `shadcn` package must stay a
   runtime dependency.
 
+### Design system
+
+Everything lives in `src/styles/globals.css`. `src/styles/globals.test.ts` enforces the rules below,
+so a violation fails `pnpm test` rather than shipping.
+
+**Colour.** Four Color Hunt primitives (`--brand-navy #30364F`, `--brand-slate #ACBAC4`,
+`--brand-sand #E1D9BC`, `--brand-cream #F0F0DB`) exist only to derive the semantic tokens. Components
+use `bg-background`, `text-muted-foreground`, `border-border` and so on — **never a hex value**, and
+never a `--brand-*` primitive. Dark mode is a separate set of semantic values, not a filter or an
+inversion. Every foreground/background pair is asserted at WCAG AA (4.5:1) in both themes; slate is
+deliberately kept off small body copy because it cannot clear that bar on the cream background.
+
+**Type.** `font-sans` is Geist → Noto Sans JP; `font-mono` is Geist Mono → Noto Sans JP. Noto is in
+*both* stacks on purpose: Geist ships no CJK, and Geist Mono additionally lacks U+2197 `↗`, which is
+the site's external-link marker and appears inside mono links and `2024.04 — 現在` date labels.
+Reordering or dropping Noto hands those glyphs to an arbitrary system font.
+
+The scale is semantic rather than numeric — `text-label`, `text-meta`, `text-micro`, `text-body`,
+`text-title`, `text-lead` — each carrying its own line-height. Japanese body copy stays at weight
+400/500; 700 is not a default.
+
+**Layout.** `max-w-page` is the 680px measure. `mt-section` (48px) separates page sections and
+`mt-entry` (40px) separates timeline entries. Everything else uses Tailwind's default spacing scale —
+do not add tokens for one-off gaps.
+
+Fonts are self-hosted through Fontsource; there is no Google Fonts request. Noto Sans JP arrives as
+124 unicode-range subsets, so the browser fetches only the chunks a page actually needs, but all of
+them ship in `dist/` (~13MB of woff2) and their `@font-face` blocks dominate the stylesheet.
+
 ### Code Quality
 
 Biome handles both linting and formatting (`biome.json`):
