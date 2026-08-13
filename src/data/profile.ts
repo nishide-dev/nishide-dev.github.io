@@ -1,0 +1,31 @@
+/**
+ * Identity and intro copy, kept out of the components so wording can change
+ * without touching JSX. Paragraphs are plain text, not HTML.
+ */
+
+export type ProfileLink = {
+  label: string
+  href: string
+}
+
+export const profile = {
+  name: "Nishide",
+  avatar: {
+    src: "/github-avatar.png",
+    /** Empty: the name sits right next to it, so announcing it twice is noise. */
+    alt: "",
+  },
+  intro: [
+    "ソフトウェアエンジニア / 大学院生。",
+    "Microbase でソフトウェア開発に携わりながら、知識データ工学研究室で自然言語処理・知識表現に関する研究に取り組んでいます。",
+  ],
+  /**
+   * Only links whose URL is confirmed. Scholar / ORCID / ACL Anthology and a
+   * contact address are registered under the content issue, once the
+   * identifiers are known — a placeholder that 404s is worse than an absence.
+   */
+  links: [
+    { label: "GitHub", href: "https://github.com/nishide-dev" },
+  ] satisfies ProfileLink[],
+  location: "Japan",
+} as const

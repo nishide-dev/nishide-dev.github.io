@@ -5,13 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <title>nishide-dev</title>
+    <!--
+      Applies the theme before first paint. It must reach the same verdict as
+      src/components/theme-provider.tsx for every stored value, including
+      unrecognised ones — anything but "light"/"dark" is treated as "system" in
+      both places, or a stale key from another nishide-dev.github.io project
+      page (they share one origin) paints white and then flips to dark.
+    -->
     <script>
       ;(() => {
         try {
           const theme = localStorage.getItem("theme")
           const dark =
             theme === "dark" ||
-            ((!theme || theme === "system") &&
+            (theme !== "light" &&
               window.matchMedia("(prefers-color-scheme: dark)").matches)
           document.documentElement.classList.toggle("dark", dark)
         } catch (_) {}

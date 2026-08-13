@@ -1,7 +1,7 @@
 import * as React from "react"
 
-type Theme = "dark" | "light" | "system"
-type ResolvedTheme = "dark" | "light"
+export type Theme = "dark" | "light" | "system"
+export type ResolvedTheme = "dark" | "light"
 
 type ThemeProviderProps = {
   children: React.ReactNode
@@ -11,7 +11,14 @@ type ThemeProviderProps = {
 }
 
 type ThemeProviderState = {
+  /** What the user chose. `"system"` means "follow the OS". */
   theme: Theme
+  /**
+   * What is actually painted right now. A toggle needs this: with `theme` set
+   * to `"system"` the choice alone cannot say whether the page is currently
+   * light or dark, and it changes under you when the OS does.
+   */
+  resolvedTheme: ResolvedTheme
   setTheme: (theme: Theme) => void
 }
 
@@ -31,11 +38,16 @@ function isTheme(value: string | null): value is Theme {
 }
 
 function getSystemTheme(): ResolvedTheme {
-  if (window.matchMedia(COLOR_SCHEME_QUERY).matches) {
-    return "dark"
+  // jsdom has no matchMedia, and neither does a non-browser renderer.
+  if (typeof window.matchMedia !== "function") {
+    return "light"
   }
 
-  return "light"
+  return window.matchMedia(COLOR_SCHEME_QUERY).matches ? "dark" : "light"
+}
+
+function resolve(theme: Theme): ResolvedTheme {
+  return theme === "system" ? getSystemTheme() : theme
 }
 
 function disableTransitionsTemporarily() {
@@ -57,31 +69,11 @@ function disableTransitionsTemporarily() {
   }
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  if (target.isContentEditable) {
-    return true
-  }
-
-  const editableParent = target.closest(
-    "input, textarea, select, [contenteditable='true']"
-  )
-  if (editableParent) {
-    return true
-  }
-
-  return false
-}
-
 export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "theme",
   disableTransitionOnChange = true,
-  ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(() => {
     try {
@@ -95,6 +87,10 @@ export function ThemeProvider({
 
     return defaultTheme
   })
+
+  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>(() =>
+    resolve(theme)
+  )
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
@@ -110,15 +106,16 @@ export function ThemeProvider({
 
   const applyTheme = React.useCallback(
     (nextTheme: Theme) => {
-      const root = document.documentElement
-      const resolvedTheme =
-        nextTheme === "system" ? getSystemTheme() : nextTheme
+      const resolved = resolve(nextTheme)
       const restoreTransitions = disableTransitionOnChange
         ? disableTransitionsTemporarily()
         : null
 
-      root.classList.remove("light", "dark")
-      root.classList.add(resolvedTheme)
+      // Only ever toggles `dark`, exactly like the pre-paint script in
+      // index.html. Adding a `light` class here too would give React a state
+      // the script can never produce.
+      document.documentElement.classList.toggle("dark", resolved === "dark")
+      setResolvedTheme(resolved)
 
       if (restoreTransitions) {
         restoreTransitions()
@@ -130,12 +127,15 @@ export function ThemeProvider({
   React.useEffect(() => {
     applyTheme(theme)
 
-    if (theme !== "system") {
+    if (theme !== "system" || typeof window.matchMedia !== "function") {
       return undefined
     }
 
     const mediaQuery = window.matchMedia(COLOR_SCHEME_QUERY)
     const handleChange = () => {
+      // Re-runs applyTheme, which updates `resolvedTheme` as well as the class.
+      // Painting the class alone would leave every consumer showing the old
+      // icon after the OS flips to dark at sunset.
       applyTheme("system")
     }
 
@@ -145,50 +145,6 @@ export function ThemeProvider({
       mediaQuery.removeEventListener("change", handleChange)
     }
   }, [theme, applyTheme])
-
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) {
-        return
-      }
-
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        return
-      }
-
-      if (isEditableTarget(event.target)) {
-        return
-      }
-
-      if (event.key.toLowerCase() !== "d") {
-        return
-      }
-
-      setThemeState((currentTheme) => {
-        const nextTheme =
-          currentTheme === "dark"
-            ? "light"
-            : currentTheme === "light"
-              ? "dark"
-              : getSystemTheme() === "dark"
-                ? "light"
-                : "dark"
-
-        try {
-          localStorage.setItem(storageKey, nextTheme)
-        } catch (_error) {
-          // ignore: localStorage unavailable, fall back to in-memory state
-        }
-        return nextTheme
-      })
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [storageKey])
 
   React.useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
@@ -218,13 +174,14 @@ export function ThemeProvider({
   const value = React.useMemo(
     () => ({
       theme,
+      resolvedTheme,
       setTheme,
     }),
-    [theme, setTheme]
+    [theme, resolvedTheme, setTheme]
   )
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ThemeProviderContext.Provider value={value}>
       {children}
     </ThemeProviderContext.Provider>
   )
