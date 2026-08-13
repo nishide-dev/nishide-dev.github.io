@@ -35,13 +35,18 @@ index.html              # Vite entry; also inlines the pre-hydration theme scrip
 src/
 ├─ components/
 │  ├─ layout/           # site-header, external-links, site-footer
+│  ├─ timeline/         # timeline, timeline-item
 │  ├─ ui/               # shadcn/ui components (Base UI primitives)
+│  ├─ error-boundary.tsx # keeps one broken section off the rest of the page
+│  ├─ external-link.tsx # the one link treatment (↗ + screen-reader wording)
+│  ├─ plain-list.tsx    # list that keeps its semantics under Preflight
 │  ├─ theme-provider.tsx
 │  └─ theme-toggle.tsx
 ├─ data/
 │  ├─ profile.ts        # identity, intro copy, external links
 │  └─ timeline.ts       # timeline content — data only, never JSX
 ├─ lib/
+│  ├─ links.ts          # Href, Link, and href scheme → link behaviour
 │  ├─ timeline.ts       # timeline types + pure format/sort/group helpers
 │  └─ utils.ts          # cn()
 ├─ styles/globals.css   # Tailwind v4 entry + design tokens
@@ -88,7 +93,57 @@ edge from both directions, so the hub an event hangs off does not resolve to not
 
 `assertValidTimeline` runs over the real data in the tests and reports **every** problem at once,
 each named with its event id — duplicate or empty ids, empty titles, malformed dates,
-over-declared precision, backwards ranges, self-references, duplicated and dangling `relatedTo`.
+over-declared precision, backwards ranges, self-references, duplicated and dangling `relatedTo`,
+plus the things the UI cannot defend against on its own: an empty or duplicated `details` line, a
+link with no label, and two links sharing an href.
+
+### Timeline UI
+
+`src/components/timeline/` renders one flat `<ol>`: date / marker / content on desktop, date stacked
+above marker + content below `md`. An affiliation and an award that happened during it are peers in
+the markup, exactly as they are in the data. No card, no badge, no nested *timeline*, no scroll
+reveal — an entry's `details` and `links` are nested lists, but the timeline itself has one level.
+
+**Repeated dates are suppressed by comparing the rendered label with the one directly above, not by
+calling `groupTimelineEvents`.** Grouping on the period would merge an affiliation and a point event
+that share the month `2024-04` but read `2024.04 — 現在` and `2024.04`, printing one label for both
+and losing the `— 現在`.
+
+The comparison is deliberately weak, and weak in the right direction: it can only hide a duplicate
+that is genuinely adjacent, and it never reorders anything. It does **not** catch every duplicate —
+sorting does not guarantee identical labels land next to each other. `sortKey` floors the *stored*
+value, not the displayed period, so equal keys break on `id` (a year-precision event ties with
+January) and a declared coarser `precision` flattens labels the sort still separates. Both print the
+label twice, which is correct: those entries are visually separated and each still needs its date.
+
+A suppressed date is not deleted: it moves into the content cell as `sr-only`, so **every** entry
+still announces its own date. On desktop the date cell stays in the grid (empty) so the marker and
+content keep their columns; on mobile it is `display: none` so the rows close up.
+
+The connecting line is drawn in two pieces because the entry gap is the `<li>`'s padding, which sits
+outside the grid row: one segment runs from the dot to the row boundary, and the next entry draws a
+9px lead-in down to its own dot. On mobile that lead-in is drawn only when the entry has no date
+label — otherwise the line would run through that text, and the label is the separator there anyway.
+Which entry ends the line is decided by `:first-child`/`:last-child`, not by a prop, so there is no
+value a caller can pass inconsistently with the actual position.
+
+`PlainList` exists because Preflight sets `list-style: none`, and WebKit responds by dropping list
+semantics from the accessibility tree — VoiceOver reads the entries as loose text. `role="list"` is
+redundant per spec and load-bearing in practice, so it lives in one component rather than being
+re-argued at every call site. It is spread-first and `role` is off its prop type: a component whose
+whole purpose is that role must not let a caller hand it away.
+
+`ExternalLink` is the site's one link treatment, so the `↗` and the screen-reader wording cannot
+drift apart between the profile row and a timeline entry. Its props are a closed set with no spread,
+so `target` and `rel` cannot be overridden either. `Href` (`src/lib/links.ts`) is a template literal
+for the same reason `TimelineDateString` is: `"github.com/x"` is a *valid relative path*, so without
+it a missing scheme silently resolves against this origin and 404s rather than throwing.
+
+The timeline is the one part of the page rendered from data that can throw — `formatTimelineDate`
+rejects rather than coerces — so it sits inside an `ErrorBoundary`. React unmounts the whole tree on
+an uncaught render error, and `main.tsx` has nothing above `<App/>`, so one malformed date would
+otherwise blank the identity and the links as well. `pnpm test` runs `assertValidTimeline` over the
+real data and the deploy workflow tests before it builds, so this is for `pnpm dev`.
 
 ### Theming
 
