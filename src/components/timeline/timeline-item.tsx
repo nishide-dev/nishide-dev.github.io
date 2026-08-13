@@ -29,7 +29,10 @@ export function TimelineItem({ event, label, repeatsDate }: TimelineItemProps) {
         // Mobile: the date sits above a marker + content row, so the text keeps
         // the full width. Desktop: date / marker / content in one row.
         "group grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3",
-        "md:grid-cols-[7rem_1.25rem_minmax(0,1fr)] md:gap-x-5",
+        // 7.5rem, not 7: a closed month range — `2025.04 — 2026.03` — measures
+        // 112.2px and wrapped to two lines at 112. Every future closed range is
+        // that wide, so this is the column's real minimum.
+        "md:grid-cols-[7.5rem_1.25rem_minmax(0,1fr)] md:gap-x-5",
         // The gap between entries is padding, not margin, so the connecting
         // line can span it. `:last-child` decides where it stops, rather than a
         // flag a caller could pass inconsistently with the actual position.

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { profile } from "@/data/profile"
+import { timeline } from "@/data/timeline"
 import { App } from "./App"
 
 function renderApp() {
@@ -43,9 +44,25 @@ describe("App", () => {
 
   it("shows the intro copy from the profile data", () => {
     renderApp()
+    // Read back from the module the component imports, so this only checks the
+    // wiring — `profile.test.ts` is where the copy itself is constrained.
+    expect(profile.intro.length).toBeGreaterThan(0)
     for (const paragraph of profile.intro) {
       expect(screen.getByText(paragraph)).toBeInTheDocument()
     }
+  })
+
+  it("renders every real timeline entry", () => {
+    // This file does NOT mock `@/data/timeline`, so it is the only place the
+    // real content is rendered. Without an assertion here, one malformed date
+    // is swallowed by the section's ErrorBoundary and the whole timeline is
+    // replaced by a failure message with the suite still green.
+    renderApp()
+
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(
+      timeline.length
+    )
+    expect(screen.queryByText(/Timeline を表示できませんでした/)).toBeNull()
   })
 
   it("renders each external link with its href", () => {
