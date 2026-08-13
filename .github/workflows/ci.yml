@@ -1,8 +1,8 @@
 name: CI
 
+# main への push は deploy.yml が同じ gate を実行するので、ここでは扱わない。
+# 両方で走らせると同一 commit で lint / typecheck / test / build が二重になる。
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
