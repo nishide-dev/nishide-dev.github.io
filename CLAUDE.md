@@ -36,13 +36,38 @@ src/
 ├─ components/
 │  ├─ ui/               # shadcn/ui components (Base UI primitives)
 │  └─ theme-provider.tsx
-├─ lib/                 # utils (cn)
+├─ data/timeline.ts     # timeline content — data only, never JSX
+├─ lib/
+│  ├─ timeline.ts       # timeline types + pure format/sort/group helpers
+│  └─ utils.ts          # cn()
 ├─ styles/globals.css   # Tailwind v4 entry + design tokens
 ├─ test/setup.ts        # Vitest setup (jest-dom)
 ├─ App.tsx
 └─ main.tsx
 public/                 # Copied verbatim to dist/ (favicon, images)
 ```
+
+### Timeline data
+
+The timeline is an **activity log, not a CV**: an affiliation and an award that happened during it
+are peers on the same axis, not parent and child. Content lives in `src/data/timeline.ts` and never
+in JSX; `src/lib/timeline.ts` holds the types and pure functions that format, sort and group it.
+There is no CMS, no fetch layer and no markdown parser — and `description` carries text, not HTML.
+
+Dates are `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, and **precision follows the string's shape** — do not
+restate it. `precision` exists to display something *coarser* than what is stored (and to declare
+`fiscal-year`, since 2025年 and 2025年度 are the same digits); declaring something finer throws.
+
+`end` is three-valued and this matters: **omitted means a point in time**, `"ongoing"` means still
+running, a date means a closed period. The obvious-looking alternative — omitted means ongoing —
+cannot express an award, which would render as `2026.03 — 現在`.
+
+Sorting is newest-first from the date alone, with `id` breaking ties so the order is total and
+stable. A year-precision date sorts as the *start* of its year. Never hand-order events in a
+component.
+
+`assertValidTimeline` is run over the real data in the tests, so duplicate ids, malformed dates,
+backwards ranges, self-references and dangling `relatedTo` ids fail CI rather than reaching a page.
 
 ### Theming
 
