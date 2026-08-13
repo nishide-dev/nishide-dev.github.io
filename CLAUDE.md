@@ -136,10 +136,41 @@ it as `sr-only`. Sharing a month is not enough — `2024.04` and `2024.04 — �
 so the 技育CAMP entry and the lab affiliation both print their own. Which of two identically-labelled
 entries comes first is the `id` tie-break, not a judgement. Nothing hand-orders the timeline.
 
-`profile.intro` names no organisation and no year, which `profile.test.ts` asserts. The timeline
-carries the affiliations worth dating, so repeating one in the intro would be a second place to keep
-current. It decays far more slowly than the earlier draft's "修士2年" — but 大学院生 is still a
-fixed-term status, so it is not exempt.
+**An award goes in the entry's title, not in `details`.** All three read
+`… 若手奨励賞を受賞` / `… 最優秀賞を受賞` / `… 努力賞を受賞`; the two hackathons used to carry theirs as a
+`details` line, where a reader scanning headings never saw it. `type` still says what the event *was*
+(`hackathon`, not `award`) — the title carries both facts, and nothing renders `type` anyway.
+
+**An *international* conference gets `国際学会` in the title and its full name in the description** —
+expanded once, on the presentation entry, as `Conference of the European Chapter of the Association
+for Computational Linguistics`. Domestic venues get neither: 言語処理学会第32回年次大会 is a conference
+too and carries no scope marker, because the marker exists to say *this one was abroad*. Just
+`国際学会`, not `自然言語処理の国際学会` — the field is already obvious from the entries around it, and
+the prefix repeats on the accepted entry directly below.
+
+**An ordinal is a confirmed fact, not a guess.** `第32回` is on the ANLP entry because
+言語処理学会年次大会 is annual and 2026 is verifiably the 32nd. EACL is not annual, so its 2026 ordinal
+is not derivable from the year — it is omitted rather than invented, which is sharpening a date by
+another name. The two entries are consistent, not contradictory.
+
+`profile.test.ts` **affirms** that `profile.intro` names the university, not just that it avoids
+things — without that, the intro can lose 豊田工業大学 or name a different one with the suite green.
+It then exempts `M2` by *removing* it and refusing every remaining digit, rather than listing the year
+shapes it can imagine: the list version let `'26`, `R8` and a silent `M2`→`M3` through. (It is still
+ASCII-only, as `/\d/` always was — `２０２６年` passes, and did before.)
+
+`M2` is a known expiry: **it becomes false in April 2027**, and nothing in the repo will notice. 修士課程
+is the durable fallback. It is written in **four** places — `profile.ts`, `index.html` twice, and as
+*pixels* in `public/og.png`. `site.test.ts` holds the first three together; nothing reads the fourth,
+so a correct edit everywhere else still ships a card saying M2. Regenerate it.
+
+**Do not add a test that fails on a date.** `ci.yml` gates every PR and `deploy.yml` every push to
+`main`, so a canary would block an unrelated deploy in April 2027, authored by someone with no context
+— and it would fire identically whether the right fix is `M3`, `修士課程`, or deleting the line.
+
+The intro also does not name the lab or microbase — the timeline carries those with their dates — and
+deliberately does not say `ソフトウェアエンジニア`, because the second paragraph already says software
+development is the work. Both are asserted.
 
 ### GitHub activity
 

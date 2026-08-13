@@ -39,15 +39,36 @@ describe("profile", () => {
     expect(new Set(profile.intro).size).toBe(profile.intro.length)
   })
 
-  it("names no organisation and no year in the intro", () => {
-    // The timeline carries the affiliations with their dates. Repeating one here
-    // would be a second place to keep current, and a year would go stale on a
-    // schedule nobody is watching.
+  it("says what the intro is meant to say, and nothing dated", () => {
     const copy = profile.intro.join("")
-    for (const name of ["豊田工業大学", "知識データ工学研究室", "microbase"]) {
+
+    // Affirmed, not just prohibited. Without this the intro can lose the
+    // university — or name a different one — and every test stays green, which
+    // is the whole point of the change that introduced it.
+    expect(copy, "the intro names the university").toContain("豊田工業大学")
+    // The second paragraph already says software development is the work, so
+    // the role in the first would be the same claim twice (see profile.ts).
+    expect(copy).not.toContain("ソフトウェアエンジニア")
+
+    // The timeline carries these with their dates; a second place to keep
+    // current is exactly what the intro is not.
+    for (const name of ["知識データ工学研究室", "microbase"]) {
       expect(copy, name).not.toContain(name)
     }
-    expect(copy).not.toMatch(/\d/)
+
+    // `M2` is exempted by removing it and then refusing *every* remaining
+    // digit — not by a regex that lists the year shapes it can imagine. The
+    // list version passed `'26`, `R8`, and a silent `M2`→`M3`; this one does
+    // not, and it makes the grade a literal the test names, so editing it
+    // trips here rather than shipping.
+    //
+    // Still ASCII-only, as `/\d/` always was: `２０２６年` and `二〇二六年`
+    // pass. Neither is a shape this copy would take, and neither was caught
+    // before.
+    expect(
+      copy.replace("M2", ""),
+      "M2 is the only number the intro may carry"
+    ).not.toMatch(/\d/)
   })
 
   it("is deeply readonly, links included", () => {

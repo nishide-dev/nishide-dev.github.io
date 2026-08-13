@@ -444,6 +444,27 @@ describe("the real timeline data", () => {
   })
 
   it.each([
+    ["anlp-2026-award", "言語処理学会第32回年次大会 若手奨励賞を受賞"],
+    [
+      "pksha-2025",
+      "PKSHA Technology 3days インターンハッカソン 最優秀賞を受賞",
+    ],
+    ["giiku-camp-2024", "サポーターズ 技育CAMP2024 努力賞を受賞"],
+    ["eacl-2026-presentation", "国際学会 EACL 2026 で論文を発表"],
+    ["eacl-2026-accepted", "国際学会 EACL 2026 に論文が採択"],
+  ])("titles %s as %s", (id, title) => {
+    // Spelled out, like the dates and hrefs above, and for the same reason: the
+    // titles ARE the content, and until this existed nothing asserted one.
+    // `assertValidTimeline` only refuses an empty title, and the smoke test's
+    // `/EACL 2026 で論文を発表/` matches the longer string either way.
+    //
+    // All three awards are pinned here because the convention is that an award
+    // lives in the title rather than in `details` — silently moving one back
+    // would otherwise cost nothing.
+    expect(byId.get(id)?.title).toBe(title)
+  })
+
+  it.each([
     ["eacl-2026-presentation", "2026.03"],
     ["anlp-2026-award", "2026.03"],
     ["eacl-2026-accepted", "2026.01"],
