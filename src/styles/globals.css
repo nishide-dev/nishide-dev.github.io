@@ -48,7 +48,15 @@
 
   /* Type scale. Japanese body copy stays at 400/500 — 700 is never the default.
      New names here must also be registered in src/lib/utils.ts, or
-     tailwind-merge reads them as text colours and drops the size. */
+     tailwind-merge reads them as text colours and drops the size —
+     `globals.test.ts` fails if one is missing.
+
+     Sizes ramp 11 / 12 / 14 / 15 / 20 and each step is used. Two pairs share a
+     size, both deliberately, and in each case another property does the work:
+     `label`/`meta` differ by `letter-spacing` (a tracked-out section label is
+     not a date), and `title`/`lead` by `line-height` (1.6 for a heading, 1.8 for
+     a paragraph that has to be read). `globals.test.ts` pins exactly those two
+     pairs, so a third collision fails. */
   --text-label: 0.6875rem; /* 11px — mono section labels */
   --text-label--line-height: 1.4;
   --text-label--letter-spacing: 0.08em;
@@ -58,10 +66,22 @@
   --text-micro--line-height: 1.5;
   --text-body: 0.875rem; /* 14px — body, timeline description */
   --text-body--line-height: 1.75;
-  --text-title: 0.9375rem; /* 15px — timeline title, name */
+  --text-title: 0.9375rem; /* 15px — timeline title */
   --text-title--line-height: 1.6;
+  /* Shares 15px with `title` and differs by leading — 1.8 against 1.6, because
+     this is a paragraph to read rather than a heading to scan. It was tried at
+     16px to break the tie by size; that pushed the second intro paragraph onto
+     a second line of 110px at the full 680px measure and split 取り組む across
+     the break, which is exactly what `word-break: auto-phrase` below is set to
+     avoid. A tie broken by leading costs nothing. */
   --text-lead: 0.9375rem; /* 15px — intro */
   --text-lead--line-height: 1.8;
+  /* The page's h1, and the only thing at this size. It used to be `text-title`,
+     i.e. identical to all eight timeline headings and smaller than the 24px
+     avatar beside it, so the document's own title read as a caption. */
+  --text-name: 1.25rem; /* 20px — the name */
+  --text-name--line-height: 1.4;
+  --text-name--letter-spacing: -0.015em;
 
   /* The one-column measure. Everything else uses Tailwind's default scale. */
   --container-page: 42.5rem; /* 680px */

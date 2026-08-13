@@ -11,6 +11,13 @@ describe("cn", () => {
       "text-title text-muted-foreground"
     )
     expect(cn("text-primary", "text-title")).toBe("text-primary text-title")
+    // `name` is checked behaviourally, not just for its presence in the source:
+    // globals.test.ts greps utils.ts for the string, which a *comment*
+    // containing "name" would satisfy while cn() still dropped the size.
+    expect(cn("text-name", "text-muted-foreground")).toBe(
+      "text-name text-muted-foreground"
+    )
+    expect(cn("text-title", "text-name")).toBe("text-name")
   })
 
   it("treats the semantic sizes as font sizes, not colours", () => {

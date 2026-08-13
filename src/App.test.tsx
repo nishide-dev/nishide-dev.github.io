@@ -25,11 +25,22 @@ function profileLink(name: RegExp) {
 describe("App", () => {
   it("names the page with a level-1 heading", () => {
     renderApp()
-    // Not `getByText`: styling the name small does not make it stop being what
-    // the document is about, and without an h1 the outline starts at h2.
+    // Not `getByText`: the name is what the document is about, and without an
+    // h1 the outline starts at h2.
     expect(
       screen.getByRole("heading", { level: 1, name: profile.name })
     ).toBeInTheDocument()
+  })
+
+  it("gives the h1 the one type step nothing else uses", () => {
+    renderApp()
+    // jsdom loads no stylesheet, so the computed size is out of reach — the
+    // class is what can be asserted, and it is enough. The h1 was `text-title`,
+    // i.e. byte-identical to all eight timeline headings, and switching it back
+    // otherwise passes lint, typecheck and the whole suite.
+    const heading = screen.getByRole("heading", { level: 1 })
+    expect(heading.className).toContain("text-name")
+    expect(heading.className).not.toContain("text-title")
   })
 
   it("starts its heading outline at level 1", () => {

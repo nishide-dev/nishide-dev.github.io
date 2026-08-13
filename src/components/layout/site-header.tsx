@@ -5,9 +5,10 @@ import { profile } from "@/data/profile"
  * Identity, not navigation: no nav landmark, no sticky positioning, no menu.
  * The page is one column and one screen deep at the top.
  *
- * The name is the page's `h1`. It is styled small, but it is what the document
- * is about — without it the outline starts at `h2` and there is nothing for a
- * screen-reader user to jump to.
+ * The name is the page's `h1` and carries `text-name`, the one step nobody else
+ * uses. It was `text-title` — byte-identical to all eight timeline headings and
+ * smaller than the 24px avatar next to it — so the thing the document is about
+ * read as a caption. Restrained is not the same as flat.
  */
 export function SiteHeader() {
   return (
@@ -21,7 +22,7 @@ export function SiteHeader() {
           src={profile.avatar.src}
           width={24}
         />
-        <h1 className="truncate font-medium text-title">{profile.name}</h1>
+        <h1 className="truncate font-medium text-name">{profile.name}</h1>
       </div>
 
       <ThemeToggle />
