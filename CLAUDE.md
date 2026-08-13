@@ -97,7 +97,28 @@ edge from both directions, so the hub an event hangs off does not resolve to not
 each named with its event id — duplicate or empty ids, empty titles, malformed dates,
 over-declared precision, backwards ranges, self-references, duplicated and dangling `relatedTo`,
 plus the things the UI cannot defend against on its own: an empty or duplicated `details` line, a
-link with no label, and two links sharing an href.
+link with no label, and two links sharing an href. The suite also asserts the array is **non-empty**,
+since every other check over it loops and would pass vacuously.
+
+### Writing timeline content
+
+The content issue is the authority on what may be said. Two rules carry real weight:
+
+- **Never widen an unconfirmed date.** A month you are not sure of is stored as `YYYY`, which renders
+  `2026年` and sorts at the *start* of that year — visibly out of place among dated neighbours, which
+  is the point. Ask, then narrow it.
+- **Say what was done, not how impressive it was**, and keep proper nouns exact. `microbase` is
+  lowercase; the affiliation is 豊田工業大学大学院 and the lab is 知識データ工学研究室.
+
+A link label names the *destination*, not the entry — repeating the heading one line below it says
+nothing, so the two affiliation links read `toyota-ti.ac.jp/Lab/kde` and `microgeo.biz`.
+
+Entries that share a month share one date label, and their order within it is the `id` tie-break, not
+a judgement about which matters more. Nothing hand-orders the timeline.
+
+Anything time-dependent in prose — "修士2年" in `profile.intro` — lives in a data file precisely
+because it has to be corrected by hand. There is no enrolment date to derive it from, and rolling an
+academic year over every April would be a guess dressed as a fact.
 
 ### GitHub activity
 

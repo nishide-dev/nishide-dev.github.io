@@ -384,8 +384,12 @@ describe("assertValidTimeline", () => {
 })
 
 describe("the real timeline data", () => {
-  // Empty until the content issue lands. These guard it from then on, and are
-  // written so they exercise every event rather than just the collection.
+  it("is not empty", () => {
+    // Every assertion below loops over `timeline`, so an empty array would make
+    // all of them pass while checking nothing.
+    expect(timeline.length).toBeGreaterThan(0)
+  })
+
   it("is valid", () => {
     expect(() => assertValidTimeline(timeline)).not.toThrow()
   })
@@ -395,6 +399,24 @@ describe("the real timeline data", () => {
       const label = formatTimelineDate(entry.date)
       expect(label, entry.id).not.toContain("undefined")
       expect(label, entry.id).not.toContain("NaN")
+    }
+  })
+
+  it("gives every event a title and a date that reads", () => {
+    for (const entry of timeline) {
+      expect(entry.title.trim(), entry.id).not.toBe("")
+      expect(formatTimelineDate(entry.date), entry.id).toMatch(/\d/)
+    }
+  })
+
+  it("points every link at an absolute, reachable-looking URL", () => {
+    for (const entry of timeline) {
+      for (const link of entry.links ?? []) {
+        expect(link.href, `${entry.id}: ${link.label}`).toMatch(
+          /^https:\/\/[^/]+\.[^/]/
+        )
+        expect(link.label.trim(), entry.id).not.toBe("")
+      }
     }
   })
 
