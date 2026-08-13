@@ -366,10 +366,20 @@ the site's external-link marker and appears inside mono links and `2024.04 — �
 Reordering or dropping Noto hands those glyphs to an arbitrary system font.
 
 The scale is semantic rather than numeric — `text-label`, `text-meta`, `text-micro`, `text-body`,
-`text-title`, `text-lead` — each carrying its own line-height. Japanese body copy stays at weight
-400/500; 700 is not a default. **A new `--text-*` name must also be registered in
+`text-title`, `text-lead`, `text-name` — each carrying its own line-height. Japanese body copy stays at
+weight 400/500; 700 is not a default. **A new `--text-*` name must also be registered in
 `src/lib/utils.ts`.** tailwind-merge only knows Tailwind's stock scales, so an unregistered name
-reads as a text *colour* and `cn("text-title", "text-muted-foreground")` silently drops the size.
+reads as a text *colour* and `cn("text-title", "text-muted-foreground")` silently drops the size —
+`globals.test.ts` fails if one is missing.
+
+Sizes ramp **11 / 12 / 14 / 15 / 16 / 20** and every step is used. Only `label` and `meta` share a
+size, and they differ by `letter-spacing`: tracking is what makes a section label read as a label and
+a date read as a date. Semantic names are worth having, but a name that produces no visible difference
+from its neighbour is a name for something the design does not actually distinguish — which is how the
+`h1` ended up at `text-title`, **byte-identical to all eight timeline headings and smaller than the
+24px avatar beside it**, so the page's own title read as a caption. `text-name` (20px) is the one step
+nothing else uses, and `text-lead` moved to 16px so the intro sits above a timeline heading rather
+than level with it. Restrained is not the same as flat.
 
 **Layout.** `max-w-page` is the 680px measure, and it must sit on its own element with padding on an
 ancestor — put both on one border-box element and the column caps at 632px instead. `mt-section`

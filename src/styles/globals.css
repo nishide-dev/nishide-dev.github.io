@@ -48,7 +48,14 @@
 
   /* Type scale. Japanese body copy stays at 400/500 — 700 is never the default.
      New names here must also be registered in src/lib/utils.ts, or
-     tailwind-merge reads them as text colours and drops the size. */
+     tailwind-merge reads them as text colours and drops the size —
+     `globals.test.ts` fails if one is missing.
+
+     Sizes ramp 11 / 12 / 14 / 15 / 16 / 20 and each step is used. `label` and
+     `meta` deliberately share 11px: they differ by `letter-spacing`, which is
+     what makes a tracked-out section label read as a label and a date read as a
+     date. That is the one place two names share a size, and it is the tracking
+     doing the work, not an oversight. */
   --text-label: 0.6875rem; /* 11px — mono section labels */
   --text-label--line-height: 1.4;
   --text-label--letter-spacing: 0.08em;
@@ -58,10 +65,19 @@
   --text-micro--line-height: 1.5;
   --text-body: 0.875rem; /* 14px — body, timeline description */
   --text-body--line-height: 1.75;
-  --text-title: 0.9375rem; /* 15px — timeline title, name */
+  --text-title: 0.9375rem; /* 15px — timeline title */
   --text-title--line-height: 1.6;
-  --text-lead: 0.9375rem; /* 15px — intro */
+  /* 16px, one step above a timeline title rather than level with it. `lead`
+     means an introductory paragraph that reads slightly larger; at 15px it was
+     the same size as the eight headings below it and the name meant nothing. */
+  --text-lead: 1rem; /* 16px — intro */
   --text-lead--line-height: 1.8;
+  /* The page's h1, and the only thing at this size. It used to be `text-title`,
+     i.e. identical to all eight timeline headings and smaller than the 24px
+     avatar beside it, so the document's own title read as a caption. */
+  --text-name: 1.25rem; /* 20px — the name */
+  --text-name--line-height: 1.4;
+  --text-name--letter-spacing: -0.015em;
 
   /* The one-column measure. Everything else uses Tailwind's default scale. */
   --container-page: 42.5rem; /* 680px */
