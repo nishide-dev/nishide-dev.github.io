@@ -5,7 +5,7 @@
  *     node scripts/fonts.mjs
  *
  * Fontsource ships one `index.css` declaring all **124** subsets, and importing
- * it put 124 `@font-face` blocks into the render-blocking stylesheet: 82% of its
+ * it put 124 `@font-face` blocks into the render-blocking stylesheet: 84% of its
  * gzipped bytes, for a page that requests 28 of them. `unicode-range` means the
  * browser never *downloads* the other 96, so this is not about transfer for the
  * fonts themselves — it is about the stylesheet that has to arrive before
@@ -22,7 +22,7 @@
  * kanji in a comment keeps its subset. The two directions fail very differently.
  * Under-collecting means a glyph falls back to the reader's system font, or to
  * tofu, with nothing to signal it. Over-collecting costs one `@font-face` block
- * (~550 B raw, ~150 B gzip) and one woff2 in `dist/` that no browser requests.
+ * (~655 B raw, ~230 B gzip) and one woff2 in `dist/` that no browser requests.
  *
  * `src/styles/fonts.test.ts` checks the committed file three ways — it matches
  * what this script would emit, it covers every character in the corpus, and it

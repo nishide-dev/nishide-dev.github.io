@@ -30,7 +30,11 @@ Every PR must pass **lint, typecheck, test, build**.
 - Run `pnpm fonts` after adding **any** non-ASCII character under `src/` or to `index.html`,
   comments included. `fonts.test.ts` fails while the generated file is stale.
 - In a git worktree `.git` is a *file*, so the `prepare` script's `[ ! -d .git ]` guard skips
-  lefthook and there is **no pre-commit hook**. Run `pnpm lint` by hand.
+  lefthook and there is **no pre-commit hook**. Run `pnpm lint` by hand — and note `useSortedClasses`
+  is **warn**-level, so `biome check` exits 0 on it and the Lint gate never fails: class order is
+  fixed by `pnpm format` and the hook, which a worktree does not have.
+- `verbatimModuleSyntax` is on, so type-only imports must say `import type`. `strict`,
+  `noUnusedLocals` and `noUnusedParameters` are on too.
 
 ## Commits and PRs
 
@@ -39,20 +43,37 @@ Every PR must pass **lint, typecheck, test, build**.
 and bodies follow the same split. One issue = one PR.
 
 ```
-<gitmoji> <type>: <imperative subject, no trailing period, ≤ 72 chars>
+<gitmoji> <type>: <imperative subject, no trailing period, ≤ 72 chars incl. the (#NN) squash adds>
 
 <日本語の本文。何をしたかではなく、なぜそうしたか。>
 ```
 
-`✨ feat` · `🐛 fix` (including a wrong comment or a test that let a bug through) · `⚡️ perf` (quote
-the numbers) · `♻️ refactor` · `💄 style` · `✏️ content` · `✅ test` · `📝 docs` · `🔧 chore`
+`✨ feat` · `🐛 fix` · `⚡️ perf` (quote the numbers) · `♻️ refactor` · `💄 style` · `✏️ content` ·
+`✅ test` · `📝 docs` · `🔧 chore` (tooling, deps, CI)
 
-State what was *measured*, not what was intended; when a review finds something, say what was wrong
-rather than what is now right.
+- **Pick the type by what a reader needs to notice**, not by which files changed. A wrong comment
+  corrected is `fix`, not `docs`; a test that let a bug through is `fix`, not `test`. `docs` and
+  `test` are for changes that add nothing a user or a caller would observe.
+- **A body is required for `feat`, `fix`, `perf`, `style` and `content`** — the types where someone
+  will later ask why. `chore`, `test` and `docs` may go bodiless when the subject says everything.
+- **`update` is retired.** It was the most-used type in the early history and `⚡️` now means `perf`,
+  so the same emoji means two things depending on how far back you scroll. Use the specific type.
+- Let GitHub's `Revert "…"` subject through unchanged; nothing is gained by rewriting it.
+- **The history before this rule does not follow it** — four of the last thirteen subjects are
+  Japanese. Do not copy recent commits; the commit that introduced this section is the example.
+
+State what was *measured*, not what was intended, and **name the conditions**: "faster" is not a
+measurement, and an FCP number without its throttling preset means nothing. When a review finds
+something, say what was wrong rather than what is now right.
 
 Non-obvious files: `public/og.png` and `src/styles/fonts.css` are **generated and committed**
 (`scripts/og.mjs` ad hoc, `pnpm fonts`); `src/data/` is data and never JSX; `src/lib/` has no
-components; `src/data/site.ts` exists only because `index.html` duplicates its strings.
+components; `src/data/site.ts` derives its strings from `profile.ts` and exists so the tests can hold
+`index.html` — which duplicates them — to the same values.
+
+`@/*` resolves to `src/*`, declared in **both** `vite.config.ts` (bundler) and `tsconfig.app.json`
+(types). **Keep the two in sync**: adding an alias to one only gives a green typecheck with a broken
+build, or the reverse.
 
 ## Timeline data
 
@@ -72,10 +93,14 @@ markdown; `description` is text, not HTML.
   `localeCompare`** (which returns 0 for strings differing only by normalisation and varies with ICU
   data). A year-precision date sorts as the start of its year. Never hand-order in a component.
 - Grouping is keyed by a map, not by comparing with the previous group: differing precisions tie, so
-  two events of one month can be separated by a year-precision event and emit that month twice.
-- `assertValidTimeline` reports **every** problem at once, each named by event id. It deliberately
-  allows duplicate `details` lines and two links sharing an href — the renderer keys both by index
-  because those are legitimate, and `timeline.test.tsx` asserts it.
+  two events of one month can be separated by a year-precision event, which **would otherwise** emit
+  that month twice with duplicate React keys.
+- `assertValidTimeline` runs over the **real data in the tests** and reports every problem at once,
+  each named by event id. Read the function for what it checks — a prose copy here would rot. It
+  deliberately *allows* duplicate `details` lines and two links sharing an href: the renderer keys
+  both by index because those are legitimate, and `timeline.test.tsx` asserts it.
+- `relatedTo` is written once, on whichever side reads more naturally; `resolveRelated` closes the
+  edge from both directions. **Nothing renders it yet** ([#27](https://github.com/nishide-dev/nishide-dev.github.io/issues/27)).
 
 ## Writing content
 
@@ -125,8 +150,11 @@ no badge, no nested timeline, no scroll reveal.
 ## GitHub activity
 
 `src/lib/github-activity.ts` holds fetch and reshaping with no components, so a build-time step could
-replace `fetchContributions`. The endpoint is called from the browser with **no token** — this is the
-client bundle — and `parseContributions` narrows the response rather than trusting a third party.
+replace `fetchContributions`. `github-contributions-api.jogruber.de` is called from the browser with
+**no token** — this is the client bundle — and `parseContributions` narrows the response rather than
+trusting a third party. `FullDateString` is narrower than `TimelineDateString` for the same reason the
+latter exists: the grid reads a weekday off every date, and `2026-03` yields `NaN` and misplaces a row
+rather than throwing.
 
 **A third party going down is a normal outcome, not an exception.** `useContributions` is three-valued
 and `error` is as ordinary as `ready`; both states keep the heading and reserve the graph's height.
@@ -137,12 +165,17 @@ and `error` is as ordinary as `ready`; both states keep the heading and reserve 
 - **The `ErrorBoundary` is inside the section**, or the heading, link and level-2 go with it.
 - `toWeeks` keys columns by the Sunday opening each week and each day by its weekday — never by
   position, so a missing day cannot shift every later row. Cell size is fixed and the **week count**
-  responds: a narrow viewport drops the oldest weeks.
+  responds: a narrow viewport drops the oldest weeks. The single measurement runs **before** the
+  `ResizeObserver` guard, so a browser without one still gets it.
 - `LEVEL_CLASS` spells class names out — Tailwind scans for literals, so `bg-activity-${level}`
-  compiles to nothing.
+  compiles to nothing. Bands 1–4 are `color-mix`ed from the primitives so editing one moves them
+  together; **band 0 is `--muted`, a literal, so it does not follow**. Navy in light, **sand in dark**
+  — the page is already navy there, so the scale must climb away from the background.
 - The hovered day is read out in **one fixed spot** (a ~200px label cannot be anchored in a 350px
-  column), positioned with `pt-` on the wrapper — `mt-` collapses out and paints over the first row.
-  The grid is one `role="img"` labelled with **the weeks actually drawn**, not the whole payload.
+  column), as `pt-` on the positioned wrapper rather than `mt-` on the grid — a margin collapses
+  straight out and paints the readout over the first row of cells.
+- The grid is one `role="img"` labelled with **the weeks actually drawn**, not the whole payload; the
+  API's own total is used only when nothing was sliced away.
 
 ## Theming
 
@@ -158,7 +191,9 @@ duplicate the same decision, so three rules keep them from drifting:
 
 `useTheme()` exposes the **choice**, not the resolution — showing the resolution makes "system,
 currently light" and "light" identical. `ThemeToggle` **cycles** system → light → dark; a two-state
-toggle is a one-way door out of `system`.
+toggle is a one-way door out of `system`. The template's global `d` keydown shortcut was removed and
+**must not come back**: it fired on Shift+D and during IME composition on a Japanese page, could not
+see Base UI's typeahead targets, and was itself a one-way door out of `system`.
 
 ## Styling
 
@@ -166,12 +201,14 @@ toggle is a one-way door out of `system`.
 - Source scanning is pinned: `@import "tailwindcss" source(none)` + explicit `@source` roots. With
   auto-detection on, Tailwind compiles class names out of prose and config — `contents: read` in
   `ci.yml` became `.contents{display:contents}`, and rewording this file changed the stylesheet.
-- shadcn/ui is configured in `components.json`. Add with `pnpm dlx shadcn@latest add <name>` and
-  **read the diff**: the CLI appends its own achromatic `oklch()` ramp after our blocks at equal
-  specificity, silently reverting the palette (`pnpm test` catches it). Components wanting
-  `--sidebar-*` or `--chart-*` render unstyled — those groups were dropped. **A component that
-  animates renders unanimated**: `tw-animate-css` is not installed and Tailwind compiles unknown
-  utilities to nothing. A test fails instead; see Fonts.
+- shadcn/ui is configured in `components.json` as **`base-nova`, so components are Base UI, not
+  Radix** — `@radix-ui/*` is not installed, and copying from ui.shadcn.com's default docs reaches for
+  a package that is not here. Add with `pnpm dlx shadcn@latest add <name>` (which reads
+  `components.json` and does the right thing) and **read the diff**: the CLI appends its own
+  achromatic `oklch()` ramp after our blocks at equal specificity, silently reverting the palette
+  (`pnpm test` catches it). Components wanting `--sidebar-*` or `--chart-*` render unstyled — those
+  groups were dropped. **A component that animates renders unanimated**: `tw-animate-css` is not
+  installed and Tailwind compiles unknown utilities to nothing. A test fails instead; see Fonts.
 - `globals.css` imports `shadcn/tailwind.css`, so `shadcn` stays a runtime dependency.
 
 ## Design system
@@ -180,9 +217,11 @@ Everything is in `src/styles/globals.css`; `globals.test.ts` enforces it, so a v
 `pnpm test` rather than shipping.
 
 **Colour.** Four Color Hunt primitives (`--brand-navy #30364f`, `--brand-slate #acbac4`,
-`--brand-sand #e1d9bc`, `--brand-cream #f0f0db`) are the only literals; semantic tokens reference them
-with `var()` so editing a primitive propagates. Components use `bg-background` and friends — **never a
-hex, never a `--brand-*`**. Dark is a separate set of values, not an inversion; sand is `--primary`
+`--brand-sand #e1d9bc`, `--brand-cream #f0f0db`) are pinned by `globals.test.ts`, and semantic tokens
+reference them with `var()` wherever they are an exact match so editing a primitive propagates. Where
+no primitive matches — most of the `.dark` block — a literal is written **in `globals.css` only**. The
+rule the tests enforce is that **a component never carries a hex or a `--brand-*`**: use
+`bg-background` and friends. Dark is a separate set of values, not an inversion; sand is `--primary`
 there, **not `--accent`**, which shadcn treats as a hover surface with body text on it (1.2:1). Every
 ink is asserted at **AA against every surface** in both themes, not just against the page —
 `text-muted-foreground` inside a `bg-accent` row is ordinary shadcn markup, which is why light
@@ -210,9 +249,10 @@ ink is asserted at **AA against every surface** in both themes, not just against
 
 **Layout.** `max-w-page` (680px) must sit on its own element with padding on an ancestor — both on one
 border-box element caps the column at 632px. `mt-section` (48px) and `mt-entry` (40px) are the only
-spacing tokens. Type/space/radius is `@theme static`; only `--color-*` aliases are `@theme inline`,
-which compiles a token into literals so `var(--container-page)` would resolve to nothing — and without
-`static` Tailwind prunes tokens no utility references yet.
+spacing tokens: **do not add one for a one-off gap**, use Tailwind's scale. Type/space/radius is
+`@theme static`; only `--color-*` aliases are `@theme inline`, which compiles a token into literals so
+`var(--container-page)` would resolve to nothing — and without `static` Tailwind prunes tokens no
+utility references yet.
 
 ## Fonts
 
@@ -235,7 +275,10 @@ emit) is the only one catching a wrong `src:` path, a `font-family` nothing requ
 `font-weight` — all of which leave the page in a system font and all of which passed the coverage-only
 version. **Coverage** and **no waste** say something true about the site; equivalence only says the
 artifact matches the script, so it cannot see a wrong corpus rule — hence the test imports
-`sourceFiles` from the generator rather than keeping a second copy that could agree with it.
+`sourceFiles` from the generator rather than keeping a second copy that could agree with it. It
+compares whitespace-insensitively because `pnpm format` reformats the generated file; `pnpm fonts`
+therefore runs the generator **and** Biome, so it reproduces the committed bytes and a second run is
+a no-op.
 
 `font-display: swap` is kept: its CLS is real (aborting every woff2 takes CLS to exactly 0) but
 0.0003 against a 0.1 threshold does not justify a `size-adjust` fallback and its drift surface.
@@ -282,8 +325,10 @@ Playwright install, since Node resolves bare imports from the *script's* directo
 `public/404.html` is a real 404, not an SPA fallback — no history rewrite, no bundle — and exists
 because the old Next.js site published `/profile`, `/research` and `/works/*`. `vite preview` serves
 `index.html` for unknown paths, so it can only be checked by loading `/404.html` directly. Its palette
-is inlined out of necessity, the one place "never a hex" cannot hold; `src/styles/404.test.ts` asserts
-all eight literals against the resolved tokens plus that the file still has no `<script>`.
+is inlined out of necessity — `--background`, `--foreground` and `--muted-foreground` per theme plus
+the two `theme-color` metas, eight literals in all. `globals.test.ts` scans only `.tsx?` under `src/`,
+so `public/` is outside it, which is why `src/styles/404.test.ts` exists: it asserts all eight against
+the resolved tokens plus that the file still has no `<script>`.
 
 ## Deployment
 
@@ -295,10 +340,12 @@ revert the site, it breaks it: the legacy publisher serves `main`'s root verbati
 `index.html`, which loads `/src/main.tsx` — so the page renders blank and the whole source tree
 becomes fetchable. `actions/configure-pages` does **not** flip this back on an already-configured repo.
 
-`ci.yml` runs the four gates on pull requests; `deploy.yml` repeats them on pushes to `main` and then
-uploads `dist/` from a *separate* `deploy` job — the split is what makes a red run on `main` say
-whether the code or the deployment broke. Neither pins a pnpm `version:`, since
-`pnpm/action-setup` reads `packageManager` and pinning both hard-errors.
+`ci.yml` runs the four gates on pull requests. `deploy.yml` repeats them on pushes to `main` in a
+`build` job that **also uploads `dist/`** as its last step; a separate `deploy` job (`needs: build`)
+runs only `deploy-pages`. That split is what makes a red run on `main` say whether the code or the
+deployment broke — putting the upload in `deploy` would erase the distinction. Neither workflow pins
+a pnpm `version:`, since `pnpm/action-setup` reads `packageManager` and specifying it in **both
+places** hard-errors with `Multiple versions of pnpm specified`.
 
 This is the **user site**, served from `/`. Do not set a Vite `base`. There is no SPA fallback and
 adding a router would mean adding one.
@@ -321,7 +368,10 @@ exercised), and `fetch` (rejects, so no test reaches the network). Storage, the 
 - **An assertion behind a guard on its own subject must filter, not branch.**
   `for (link of links) if (target === "_blank") expect(rel)…` reads as coverage and is disabled by
   exactly the regression it exists to catch. Filter first, then assert the filtered set is non-empty.
-- **Assert against the real thing, not a literal restated nearby** — a test reading its expected value
-  from the module under test passes for whatever that module happens to hold.
+- **Which side a literal belongs on depends on what else exists.** When a *second real artifact*
+  holds the value — `index.html`, `globals.css`, the PNG's IHDR — assert against that artifact, never
+  against a hex or a number restated in the test. When the only alternative is the module under test,
+  **spell the expectation out**: reading `profile.links` back off `profile.ts` passes for whatever
+  that file happens to hold. The two rules point opposite ways on purpose.
 - When a review finds a gap, **prove the fix with a mutation**: break the code deliberately and
   confirm the test fails. Several assertions here were added, looked right, and caught nothing.
