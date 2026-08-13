@@ -1,0 +1,104 @@
+<!doctype html>
+<!--
+  A real 404 page, not an SPA fallback: it rewrites no history and loads no
+  bundle, so it does not reintroduce the routing the deploy issue rules out.
+
+  It exists because the previous Next.js site published /profile, /research,
+  /works and /works/*, and those URLs are in search results and other people's
+  links. GitHub Pages serves this file for any path it cannot find.
+
+  Standalone by necessity — it must render before, and without, the app — so the
+  palette is inlined. The four values are the light and dark `--background` and
+  `--foreground` from src/styles/globals.css; they are literals here because
+  nothing can import a stylesheet at this point.
+-->
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ページが見つかりません — Ryusei Nishide</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <meta
+      name="theme-color"
+      content="#f8f8ee"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#30364f"
+      media="(prefers-color-scheme: dark)"
+    />
+    <style>
+      :root {
+        --background: #f8f8ee;
+        --foreground: #30364f;
+        --muted-foreground: #4e566b;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #30364f;
+          --foreground: #f0f0db;
+          --muted-foreground: #acbac4;
+          color-scheme: dark;
+        }
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        background: var(--background);
+        color: var(--foreground);
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Hiragino Sans",
+          "Noto Sans JP", sans-serif;
+        font-size: 0.9375rem;
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      main {
+        margin: 0 auto;
+        max-width: 42.5rem;
+      }
+      h1 {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        line-height: 1.6;
+      }
+      p {
+        color: var(--muted-foreground);
+        margin-top: 0.75rem;
+      }
+      a {
+        color: inherit;
+        display: inline-block;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.75rem;
+        margin-top: 1.25rem;
+        padding: 0.25rem 0;
+      }
+      a:hover {
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.25em;
+      }
+      a:focus-visible {
+        border-radius: 2px;
+        outline: 2px solid var(--foreground);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ページが見つかりません</h1>
+      <p>
+        お探しのページは存在しないか、移動しました。旧サイトの URL
+        からお越しの場合は、内容がトップページに統合されています。
+      </p>
+      <a href="/">トップページへ戻る</a>
+    </main>
+  </body>
+</html>

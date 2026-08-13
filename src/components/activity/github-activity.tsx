@@ -23,9 +23,12 @@ export function GitHubActivity({ login }: { login: string }) {
   return (
     <section aria-labelledby="activity-heading" className="mt-section">
       <div className="flex items-baseline justify-between gap-4">
+        {/* The document is `lang="ja"`; an English section label read by a
+            Japanese voice is mangled. */}
         <h2
           className="font-mono text-label text-muted-foreground uppercase"
           id="activity-heading"
+          lang="en"
         >
           Activity
         </h2>
