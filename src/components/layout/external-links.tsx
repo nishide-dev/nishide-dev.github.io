@@ -1,19 +1,26 @@
-import { profile } from "@/data/profile"
+import { linkBehaviour, profile } from "@/data/profile"
 
 /**
- * Text links with a `↗` marker rather than a row of brand icons. The arrow is
- * U+2197, which Geist Mono does not carry — the font stack falls through to
- * Noto Sans JP for it, which is why Noto is in the mono stack too.
+ * Text links rather than a row of brand icons.
+ *
+ * `↗` (U+2197) marks "this opens a new tab" and nothing else. A `mailto:` hands
+ * off to a mail client, so it does not get one — showing the arrow there tells
+ * a sighted user to expect a tab while the screen-reader text correctly says
+ * otherwise, and the two channels must not disagree.
+ *
+ * Geist Mono does not carry U+2197; the stack falls through to Noto Sans JP for
+ * it, which is why Noto is in the mono stack too.
  */
 export function ExternalLinks() {
   return (
     <nav aria-label="外部リンク">
-      <ul className="flex flex-wrap gap-x-5 gap-y-1">
+      {/* biome-ignore lint/a11y/noRedundantRoles: redundant per spec, but
+          Preflight sets `list-style: none` and WebKit then drops list semantics
+          from the accessibility tree — VoiceOver announces the entries as loose
+          text with no "list, 2 items" boundary. The role restores them. */}
+      <ul className="flex flex-wrap gap-x-5 gap-y-1" role="list">
         {profile.links.map((link) => {
-          // A mailto hands off to a mail client rather than opening a tab, so
-          // it gets neither `target` nor a "new tab" announcement — some
-          // browsers leave a blank tab behind when it does.
-          const opensTab = link.href.startsWith("http")
+          const { opensTab, hint } = linkBehaviour(link.href)
 
           return (
             <li key={link.href}>
@@ -25,10 +32,9 @@ export function ExternalLinks() {
                 rel={opensTab ? "noreferrer" : undefined}
                 target={opensTab ? "_blank" : undefined}
               >
-                {link.label} <span aria-hidden="true">↗</span>
-                <span className="sr-only">
-                  {opensTab ? "（新しいタブで開く）" : "（メールを送信）"}
-                </span>
+                {link.label}
+                {opensTab ? <span aria-hidden="true"> ↗</span> : null}
+                {hint ? <span className="sr-only">（{hint}）</span> : null}
               </a>
             </li>
           )

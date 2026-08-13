@@ -1,35 +1,80 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup } from "@testing-library/react"
-import { afterEach } from "vitest"
+import { afterEach, beforeEach } from "vitest"
 
-// Vitest runs without `globals: true`, so React Testing Library cannot find a
-// global `afterEach` to register its own auto-cleanup with. Without this,
-// rendered trees pile up in document.body and any two tests in a file that
-// query the same accessible name fail with "Found multiple elements".
+// React Testing Library auto-configures itself only when `beforeAll`/`afterAll`
+// are globals, and vite.config.ts does not set `globals: true`. Two things are
+// lost as a result, and both fail silently rather than loudly:
+//
+//   1. auto-cleanup, so rendered trees accumulate across tests in a file;
+//   2. the act environment, so React's "not wrapped in act(...)" warning never
+//      fires and out-of-act state updates go unreported.
 afterEach(cleanup)
 
-// jsdom does not implement matchMedia, which ThemeProvider calls on mount to
-// resolve the "system" theme. Individual tests override this to drive the
-// preference; this default keeps every other test from throwing.
-if (typeof window.matchMedia !== "function") {
-  window.matchMedia = (query: string): MediaQueryList => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-    addListener: () => undefined,
-    removeListener: () => undefined,
-    dispatchEvent: () => false,
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true
+
+/**
+ * A matchMedia stub that actually tracks its listeners, so any test file can
+ * observe how a component reacts to the OS preference changing. A stub whose
+ * `addEventListener` is a no-op silently drops the subscription and makes that
+ * behaviour unobservable.
+ */
+function installMatchMedia() {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>()
+  let matches = false
+
+  const media = (query: string): MediaQueryList =>
+    ({
+      get matches() {
+        // A getter, not a snapshot: the provider holds this object across
+        // changes and a frozen `matches` would misreport after the first flip.
+        return matches
+      },
+      media: query,
+      onchange: null,
+      addEventListener: (_type: string, listener: () => void) => {
+        listeners.add(listener)
+      },
+      removeEventListener: (_type: string, listener: () => void) => {
+        listeners.delete(listener)
+      },
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList
+
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: media,
   })
+
+  return {
+    /** Flips the OS preference and notifies subscribers, event object included. */
+    setPrefersDark(next: boolean) {
+      matches = next
+      for (const listener of listeners) {
+        listener({ matches: next, media: "" } as MediaQueryListEvent)
+      }
+    },
+    reset() {
+      matches = false
+      listeners.clear()
+    },
+  }
 }
 
-// Node 20+ ships its own `localStorage` global, which needs `--localstorage-file`
+export const colorScheme = installMatchMedia()
+
+// Node ships its own `localStorage` global, which needs `--localstorage-file`
 // to be usable and otherwise resolves to an object with no methods at all — and
-// it shadows jsdom's. ThemeProvider wraps its storage access in try/catch, so
-// the resulting TypeError was swallowed and theme persistence was never
-// actually exercised by any test. Installing a real in-memory Storage also
-// keeps runs deterministic across Node versions and leaves no state on disk.
+// it shadows jsdom's. ThemeProvider wraps storage access in try/catch, so the
+// resulting TypeError was swallowed and theme persistence was never actually
+// exercised by any test. An in-memory Storage also keeps runs deterministic
+// across Node versions and leaves nothing on disk.
 class MemoryStorage implements Storage {
   #entries = new Map<string, string>()
 
@@ -58,7 +103,24 @@ class MemoryStorage implements Storage {
   }
 }
 
-Object.defineProperty(window, "localStorage", {
-  configurable: true,
-  value: new MemoryStorage(),
+function installLocalStorage() {
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    // Writable so a test can swap in a throwing stub and exercise the fallbacks
+    // in ThemeProvider — the very paths this shim exists because nothing
+    // reached.
+    writable: true,
+    value: new MemoryStorage(),
+  })
+}
+
+installLocalStorage()
+
+// Storage and the OS preference are global, so without this one test's choices
+// leak into the next. Reinstalled rather than cleared, so a test that swapped
+// in a throwing stub does not break the next file.
+beforeEach(() => {
+  installLocalStorage()
+  colorScheme.reset()
+  document.documentElement.className = ""
 })

@@ -99,16 +99,25 @@ Dark mode is class-based (`.dark` on `<html>`). Two pieces cooperate:
 - `src/components/theme-provider.tsx` owns the runtime state, persists to `localStorage` under the
   `theme` key, follows `prefers-color-scheme` when set to `system`, and syncs across tabs.
 
-The two duplicate the same decision, so a change to the storage key, the default theme, or the
-class names has to be made in both places — nothing links them mechanically. Two rules keep them
-from drifting: **only `dark` is ever toggled** (the script cannot produce a `light` class, so React
-must not either), and **any stored value that is not `light`/`dark` means system** — the whole
-`nishide-dev.github.io` origin shares one `localStorage`, so a stale key from another project page
-is a real input, and disagreeing about it paints one theme and then flips.
+The two duplicate the same decision, so nothing links them mechanically and three rules keep them
+from drifting:
 
-`useTheme()` exposes `resolvedTheme` as well as `theme`. A control cannot derive the former from the
-latter: with `theme === "system"` the choice alone does not say what is on screen, and it changes
-underneath when the OS does.
+- **Only `dark` is ever toggled.** The script cannot produce a `light` class, so React must not
+  either, or the first `.light`-scoped rule breaks first paint alone.
+- **Any stored value that is not `light`/`dark` means system.** The whole `nishide-dev.github.io`
+  origin shares one `localStorage`, so a stale key from another project page is a real input, and
+  disagreeing about it paints one theme then flips.
+- **The default theme and the storage key are not props.** The script has to decide before React
+  exists and cannot read props, so a configurable default would guarantee the flash it prevents.
+  `DEFAULT_THEME` is a module constant for that reason.
+
+The script guards only the storage *read*: reading can throw outright (Safari with cookies blocked,
+a sandboxed iframe), and letting that skip the whole block would drop the system preference too and
+paint light on a dark OS.
+
+`useTheme()` exposes the **choice**, not the resolved theme. The resolution lives on `<html>` as the
+`dark` class and is consumed by CSS, so nothing reads it in JS — and a control should render the
+choice anyway, since showing the resolution makes "system, currently light" and "light" identical.
 
 `ThemeToggle` **cycles** system → light → dark rather than toggling. A two-state toggle is a one-way
 door out of `system`: the first press pins a theme and nothing in the UI ever restores following the
@@ -220,16 +229,23 @@ Project references: `tsconfig.json` → `tsconfig.app.json` (`src/`, DOM libs) a
 Vitest with the jsdom environment and React Testing Library. Co-locate tests next to the code
 (`App.test.tsx`, `components/ui/button.test.tsx`).
 
-`src/test/setup.ts` patches three gaps, each of which otherwise fails silently rather than loudly:
+`src/test/setup.ts` patches four gaps, each of which otherwise fails silently rather than loudly:
 
 - **RTL auto-cleanup.** Vitest runs without `globals: true`, so RTL cannot find a global `afterEach`
   to register with and rendered trees accumulate across tests in a file.
-- **`window.matchMedia`.** jsdom has none, and `ThemeProvider` calls it on mount.
+- **The act environment.** The same missing globals mean `setReactActEnvironment` never runs, so
+  React's "not wrapped in act(...)" warning is off for the whole suite.
+- **`window.matchMedia`.** The stub tracks its listeners and exports `colorScheme` so any test can
+  flip the OS preference; a stub whose `addEventListener` is a no-op silently drops the subscription
+  and makes that behaviour unobservable.
 - **`localStorage`.** Node ships its own global that needs `--localstorage-file` and otherwise
   resolves to an object with *no methods*, shadowing jsdom's. Since `ThemeProvider` wraps storage
   access in try/catch, the resulting `TypeError` was swallowed and theme persistence was never
   actually exercised. An in-memory `Storage` replaces it, which also keeps runs deterministic across
   Node versions.
+
+Storage, the OS preference and the `<html>` class are all global, so `beforeEach` reinstalls them —
+reinstalls rather than clears, since a test may have swapped in a throwing stub.
 
 ## Deployment
 

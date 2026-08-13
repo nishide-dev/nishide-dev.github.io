@@ -1,58 +1,25 @@
-import { render, screen } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
-
-/** Lets a test say what the OS preference is, and flip it mid-test. */
-function stubColorScheme(prefersDark: boolean) {
-  const listeners = new Set<() => void>()
-
-  vi.stubGlobal(
-    "matchMedia",
-    (query: string): MediaQueryList =>
-      ({
-        matches: prefersDark,
-        media: query,
-        onchange: null,
-        addEventListener: (_: string, listener: () => void) =>
-          listeners.add(listener),
-        removeEventListener: (_: string, listener: () => void) =>
-          listeners.delete(listener),
-        addListener: () => undefined,
-        removeListener: () => undefined,
-        dispatchEvent: () => false,
-      }) as unknown as MediaQueryList
-  )
-
-  return {
-    change(nextPrefersDark: boolean) {
-      prefersDark = nextPrefersDark
-      for (const listener of listeners) listener()
-    },
-  }
-}
+import { colorScheme } from "@/test/setup"
 
 const isDark = () => document.documentElement.classList.contains("dark")
 
-beforeEach(() => {
-  localStorage.clear()
-  document.documentElement.className = ""
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
+function renderToggle() {
+  return render(
+    <ThemeProvider>
+      <ThemeToggle />
+    </ThemeProvider>
+  )
+}
 
 describe("ThemeToggle", () => {
   it("starts on the system preference", () => {
-    stubColorScheme(true)
-    render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+    colorScheme.setPrefersDark(true)
+    renderToggle()
 
     expect(screen.getByRole("button")).toHaveAccessibleName(
       /テーマ: システム設定/
@@ -62,12 +29,7 @@ describe("ThemeToggle", () => {
 
   it("cycles system → light → dark → system", async () => {
     const user = userEvent.setup()
-    stubColorScheme(false)
-    render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+    renderToggle()
 
     const button = screen.getByRole("button")
 
@@ -85,14 +47,28 @@ describe("ThemeToggle", () => {
     expect(isDark()).toBe(false)
   })
 
+  it("shows the choice rather than what is painted", async () => {
+    const user = userEvent.setup()
+    colorScheme.setPrefersDark(true)
+    renderToggle()
+
+    // Both of these paint dark. If the icon tracked the resolved theme they
+    // would be indistinguishable, and the control could not say whether the
+    // site is following the OS.
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      /テーマ: システム設定/
+    )
+    expect(isDark()).toBe(true)
+
+    await user.click(screen.getByRole("button")) // → light
+    await user.click(screen.getByRole("button")) // → dark
+    expect(screen.getByRole("button")).toHaveAccessibleName(/テーマ: ダーク/)
+    expect(isDark()).toBe(true)
+  })
+
   it("is operable by keyboard alone", async () => {
     const user = userEvent.setup()
-    stubColorScheme(false)
-    render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+    renderToggle()
 
     await user.tab()
     expect(screen.getByRole("button")).toHaveFocus()
@@ -103,75 +79,116 @@ describe("ThemeToggle", () => {
 
   it("persists the choice so a reload keeps it", async () => {
     const user = userEvent.setup()
-    stubColorScheme(false)
-    const { unmount } = render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+    const { unmount } = renderToggle()
 
     await user.click(screen.getByRole("button")) // → light
     await user.click(screen.getByRole("button")) // → dark
     expect(localStorage.getItem("theme")).toBe("dark")
 
     unmount()
-    render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+    renderToggle()
 
     expect(screen.getByRole("button")).toHaveAccessibleName(/テーマ: ダーク/)
     expect(isDark()).toBe(true)
   })
 
-  it("follows the OS when set to system, icon included", async () => {
-    const media = stubColorScheme(false)
-    render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
-
+  it("repaints when the OS flips while set to system", () => {
+    renderToggle()
     expect(isDark()).toBe(false)
 
-    // Painting the class without updating React state would leave the label
-    // and icon showing the old theme until something else re-rendered.
-    await Promise.resolve()
-    media.change(true)
-
+    act(() => {
+      colorScheme.setPrefersDark(true)
+    })
     expect(isDark()).toBe(true)
+
+    act(() => {
+      colorScheme.setPrefersDark(false)
+    })
+    expect(isDark()).toBe(false)
   })
 
   it("ignores the OS once the user has chosen", async () => {
     const user = userEvent.setup()
-    const media = stubColorScheme(false)
-    render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+    renderToggle()
 
     await user.click(screen.getByRole("button")) // → light
-    media.change(true)
 
+    act(() => {
+      colorScheme.setPrefersDark(true)
+    })
     expect(isDark()).toBe(false)
   })
 
   it("treats an unrecognised stored value as system", () => {
+    // The whole nishide-dev.github.io origin shares one localStorage, so a key
+    // left by another project page is a real input. The pre-paint script and
+    // the provider must reach the same verdict or the page flashes.
     localStorage.setItem("theme", "Dark")
-    stubColorScheme(true)
-    render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+    colorScheme.setPrefersDark(true)
+    renderToggle()
 
-    // Must match the pre-paint script in index.html, or the page paints one
-    // theme and then flips to the other.
     expect(screen.getByRole("button")).toHaveAccessibleName(
       /テーマ: システム設定/
     )
     expect(isDark()).toBe(true)
+  })
+
+  it("keeps working when storage throws", () => {
+    // Safari with cookies blocked, or a sandboxed iframe: getItem throws rather
+    // than returning null.
+    const throwing = {
+      getItem: () => {
+        throw new DOMException("denied", "SecurityError")
+      },
+      setItem: () => {
+        throw new DOMException("denied", "SecurityError")
+      },
+    }
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      writable: true,
+      value: throwing,
+    })
+
+    colorScheme.setPrefersDark(true)
+    expect(() => renderToggle()).not.toThrow()
+    expect(isDark()).toBe(true)
+  })
+
+  it("follows a theme change made in another tab", () => {
+    renderToggle()
+    expect(isDark()).toBe(false)
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", { key: "theme", newValue: "dark" })
+      )
+    })
+    expect(screen.getByRole("button")).toHaveAccessibleName(/テーマ: ダーク/)
+    expect(isDark()).toBe(true)
+
+    // A key cleared elsewhere, or set to something unrecognised, falls back to
+    // system rather than sticking on the old value.
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", { key: "theme", newValue: null })
+      )
+    })
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      /テーマ: システム設定/
+    )
+  })
+
+  it("ignores storage events for other keys", () => {
+    renderToggle()
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", { key: "unrelated", newValue: "dark" })
+      )
+    })
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      /テーマ: システム設定/
+    )
   })
 })
