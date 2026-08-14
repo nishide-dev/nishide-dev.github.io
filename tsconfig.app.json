@@ -10,6 +10,10 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    /* fonts.test.ts and og-tokens.test.ts import the plain-.mjs generators.
+       Their types come from JSDoc in those files; `checkJs` stays off here so
+       the scripts are checked once, by tsconfig.node.json, not twice. */
+    "allowJs": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,

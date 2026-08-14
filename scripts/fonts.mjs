@@ -35,7 +35,12 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 
-/** The codepoints one Fontsource `unicode-range` declaration admits. */
+/**
+ * The codepoints one Fontsource `unicode-range` declaration admits.
+ *
+ * @param {string} declaration
+ * @returns {[number, number][]}
+ */
 export function ranges(declaration) {
   return declaration.split(",").map((part) => {
     const [lo, hi] = part.trim().replace(/^U\+/i, "").split("-")
@@ -68,7 +73,14 @@ const NOT_TEXT =
  */
 const IS_TEST = /\.test\.(tsx?|[jm]s)$/
 
-/** Source files whose text can reach the page. */
+/**
+ * Source files whose text can reach the page.
+ *
+ * @param {string} dir
+ * @param {string[]} [acc]
+ * @param {string} [stop] Root the fonts.css exclusion is measured from.
+ * @returns {string[]}
+ */
 export function sourceFiles(dir, acc = [], stop = dir) {
   for (const entry of readdirSync(dir).sort()) {
     const path = join(dir, entry)
@@ -91,6 +103,12 @@ export function sourceFiles(dir, acc = [], stop = dir) {
  * skipped, while a hex-looking escape that was never a character just adds a
  * subset nobody requests. The CSS form (`content: "\9e92"`) is only read in
  * stylesheets, because in JS `\9e92` is `\9` followed by `e92`.
+ */
+/**
+ * @param {string} text
+ * @param {boolean} isCss CSS escapes are read only in stylesheets — in JS,
+ *   `\9e92` is `\9` followed by `e92`.
+ * @returns {string}
  */
 function decodeEscapes(text, isCss) {
   const found = []
@@ -116,6 +134,10 @@ function decodeEscapes(text, isCss) {
  * as well, but that is incidental — it ships only because `é`, `—` and the curly
  * quotes fall in it, and the browser never requests it.)
  */
+/**
+ * @param {string} repoRoot
+ * @returns {Set<string>}
+ */
 export function requiredCharacters(repoRoot) {
   const files = [
     ...sourceFiles(join(repoRoot, "src")),
@@ -127,10 +149,22 @@ export function requiredCharacters(repoRoot) {
       return source + decodeEscapes(source, file.endsWith(".css"))
     })
     .join("")
-  return new Set([...text].filter((ch) => ch.codePointAt(0) > 0x7f))
+  // Spreading a string yields non-empty units, so codePointAt(0) is always
+  // defined here — but say so rather than casting past the check.
+  return new Set(
+    [...text].filter((ch) => {
+      const cp = ch.codePointAt(0)
+      return cp !== undefined && cp > 0x7f
+    })
+  )
 }
 
 /** Subset keys from `unicode.json` that between them cover `characters`. */
+/**
+ * @param {Record<string, string>} unicode The package's own unicode.json.
+ * @param {Iterable<string>} characters
+ * @returns {Set<string>}
+ */
 export function requiredSubsets(unicode, characters) {
   const parsed = Object.entries(unicode).map(([key, declaration]) => ({
     key,
@@ -141,6 +175,10 @@ export function requiredSubsets(unicode, characters) {
   const uncovered = []
   for (const ch of characters) {
     const cp = ch.codePointAt(0)
+    // An empty string covers nothing and has no codepoint. Skipping it keeps the
+    // "no subset covers X" throw below reachable — reading `.toString(16)` off
+    // `undefined` would replace that message with a TypeError.
+    if (cp === undefined) continue
     const hits = parsed.filter(({ admits }) =>
       admits.some(([lo, hi]) => cp >= lo && cp <= hi)
     )
@@ -162,12 +200,21 @@ export function requiredSubsets(unicode, characters) {
   return needed
 }
 
-/** `[119]` and `latin` name their files differently; both appear as keys. */
+/**
+ * `[119]` and `latin` name their files differently; both appear as keys.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
 export function subsetFile(key) {
   const name = key.startsWith("[") ? key.slice(1, -1) : key
   return `noto-sans-jp-${name}-wght-normal.woff2`
 }
 
+/**
+ * @param {string} repoRoot
+ * @returns {string}
+ */
 export function generateFontCss(repoRoot) {
   const unicode = JSON.parse(
     readFileSync(

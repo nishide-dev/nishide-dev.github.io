@@ -71,6 +71,14 @@ Non-obvious files: `public/og.png` and `src/styles/fonts.css` are **generated an
 components; `src/data/site.ts` derives its strings from `profile.ts` and exists so the tests can hold
 `index.html` — which duplicates them — to the same values.
 
+`scripts/` is plain `.mjs` so `node scripts/fonts.mjs` needs no build step, and it is **typechecked**:
+`tsconfig.node.json` sets `allowJs` + `checkJs` and types come from **JSDoc in the files themselves**,
+not a `.d.mts` that can drift from what it describes. Turning `checkJs` on immediately found a real
+one — `cp.toString(16)` on a possibly-`undefined` codepoint, which would have replaced a clear "no
+subset covers X" error with a `TypeError`. **`scripts/og.mjs` is the one exclusion**: it imports
+`playwright`, which is deliberately not installed. Everything checkable was moved into
+`og-tokens.mjs` so that exclusion covers the browser driver and nothing else.
+
 `@/*` resolves to `src/*`, declared in **both** `vite.config.ts` (bundler) and `tsconfig.app.json`
 (types). **Keep the two in sync**: adding an alias to one only gives a green typecheck with a broken
 build, or the reverse.
