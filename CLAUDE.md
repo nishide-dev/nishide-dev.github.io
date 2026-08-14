@@ -239,6 +239,15 @@ ink is asserted at **AA against every surface** in both themes, not just against
 `outline-none` — it sits in the utilities layer and cancels the base rule. (The template's
 `focus-visible:ring-*` painted the ring inside the button, navy on navy: a 1:1 indicator.)
 
+**`--border`/`--input` are control boundaries and clear 3:1 against every surface; `--rule` is the
+decorative hairline and deliberately does not.** SC 1.4.11 applies to what identifies a control, not
+to a line that separates content — and 3:1 would turn the timeline's connecting line into a rail. The
+split is what let `--border` move: before it, one token served both and sat at 1.5:1, correct for the
+rule and quietly non-compliant for anything else. `--card`/`--popover` are raised surfaces that must
+not equal `--background`; `--card` used to be byte-identical to it, so the first shadcn component to
+use one would have rendered invisible. All of this is asserted, and none of it changed a pixel —
+nothing on the page renders a control boundary yet, which is exactly why it was safe to fix now.
+
 **Type.** Noto is in *both* stacks on purpose: Geist ships no CJK, and Geist Mono also lacks U+2197
 `↗`, which appears in mono links and `2024.04 — 現在` labels. Sizes ramp **11 / 12 / 14 / 15 / 20**.
 

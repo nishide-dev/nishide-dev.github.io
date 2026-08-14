@@ -116,6 +116,7 @@
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-rule: var(--rule);
   --color-ring: var(--ring);
   --color-activity-0: var(--activity-0);
   --color-activity-1: var(--activity-1);
@@ -137,9 +138,14 @@
 :root {
   --background: #f8f8ee;
   --foreground: var(--brand-navy);
-  --card: #f8f8ee;
+  /* Raised surfaces. Nothing renders them today — the design has no cards and
+     no popovers — but `--card` was byte-identical to `--background`, so the
+     first shadcn component to use one would have been invisible. They are a
+     step lighter than the page, and their *boundary* does the identifying work:
+     `--border` clears 3:1, which is what SC 1.4.11 actually asks for. */
+  --card: #fbfbf3;
   --card-foreground: var(--brand-navy);
-  --popover: #fbfbf3;
+  --popover: #fefef7;
   --popover-foreground: var(--brand-navy);
   --primary: var(--brand-navy);
   --primary-foreground: var(--brand-cream);
@@ -153,9 +159,21 @@
   --accent: var(--brand-sand);
   --accent-foreground: var(--brand-navy);
   --destructive: #9a3b34;
-  --border: #d6cba8;
-  --input: #cdc199;
+  /* Component boundaries, on the same navy-toward-page axis as
+     `--muted-foreground`. Both were ~1.5:1, which is what a *decorative* rule
+     wants and what SC 1.4.11 forbids for anything that identifies a control.
+     Nothing rendered them at the time — the only boundary this page draws is the
+     focus outline — so raising them costs nothing visible and makes the first
+     real input or bordered button correct instead of subtly non-compliant. */
+  --border: #707482;
+  --input: #707482;
   --ring: var(--brand-navy);
+
+  /* The decorative hairline: the timeline's connecting line, and nothing else.
+     It kept `--border`'s old value when that token was raised, because a rule
+     that separates content is not a control boundary and 3:1 would turn a
+     hairline into a rail. Keeping it separate is what let `--border` move. */
+  --rule: #d6cba8;
 
   --selection: var(--brand-sand);
   --selection-foreground: var(--brand-navy);
@@ -179,9 +197,9 @@
 .dark {
   --background: var(--brand-navy);
   --foreground: var(--brand-cream);
-  --card: var(--brand-navy);
+  --card: #383f58;
   --card-foreground: var(--brand-cream);
-  --popover: #383f58;
+  --popover: #404863;
   --popover-foreground: var(--brand-cream);
   --primary: var(--brand-sand);
   --primary-foreground: var(--brand-navy);
@@ -192,9 +210,11 @@
   --accent: #3e4661;
   --accent-foreground: var(--brand-cream);
   --destructive: #efa79f;
-  --border: #4a5270;
-  --input: #5a6382;
+  --border: #989a9b;
+  --input: #989a9b;
   --ring: var(--brand-slate);
+
+  --rule: #4a5270;
 
   --selection: var(--brand-sand);
   --selection-foreground: var(--brand-navy);

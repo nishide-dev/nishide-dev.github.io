@@ -82,18 +82,45 @@ describe.each(["light", "dark"] as const)("%s theme", (theme) => {
     expectAA(theme, fg, bg)
   })
 
-  // Not a WCAG gate — decorative rules are exempt from 1.4.11. This is a design
-  // floor so a hairline cannot silently become invisible against the page.
-  it.each(["border", "input"])(
-    "%s is perceptible against the page",
-    (token) => {
-      const ratio = contrastRatio(
-        colour(theme, token),
-        colour(theme, "background")
-      )
-      expect(Number(ratio.toFixed(2)), `--${token}`).toBeGreaterThanOrEqual(1.4)
-    }
-  )
+  // SC 1.4.11 wants 3:1 for anything that identifies a control or its state.
+  // Nothing renders these today — the only boundary this page draws is the focus
+  // outline — so the gate is here to make the *first* real input or bordered
+  // button correct, rather than subtly non-compliant at the 1.5:1 they used to
+  // sit at. Checked against every surface, not just the page: a bordered control
+  // inside a `bg-muted` row is ordinary markup.
+  it.each(
+    ["border", "input"].flatMap((token) =>
+      SURFACES.map((surface) => [token, surface] as const)
+    )
+  )("%s meets 3:1 against %s", (token, surface) => {
+    const ratio = contrastRatio(colour(theme, token), colour(theme, surface))
+    expect(
+      Number(ratio.toFixed(2)),
+      `--${token} on --${surface}`
+    ).toBeGreaterThanOrEqual(3)
+  })
+
+  // `--rule` is the decorative hairline (the timeline's connecting line) and is
+  // deliberately *exempt* from the above: a rule that separates content is not a
+  // control boundary, and 3:1 would turn a hairline into a rail. It still has a
+  // floor, so it cannot silently vanish into the page.
+  it("rule stays a hairline, not a boundary", () => {
+    const ratio = contrastRatio(
+      colour(theme, "rule"),
+      colour(theme, "background")
+    )
+    expect(Number(ratio.toFixed(2)), "--rule").toBeGreaterThanOrEqual(1.4)
+    expect(Number(ratio.toFixed(2)), "--rule").toBeLessThan(3)
+  })
+
+  // `--card` was byte-identical to `--background` in both themes, so the first
+  // shadcn component to use one would have rendered invisible. These are raised
+  // surfaces; their boundary does the identifying, but they must not be the page.
+  it.each(["card", "popover"])("%s is not the page", (token) => {
+    expect(colour(theme, token), `--${token}`).not.toBe(
+      colour(theme, "background")
+    )
+  })
 
   // The ring is drawn as an offset outline, so it lands on whatever is *behind*
   // the focused element rather than on its own fill.
