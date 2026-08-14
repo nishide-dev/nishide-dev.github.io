@@ -13,11 +13,10 @@
  */
 
 // `ranges` is imported rather than copied: og.mjs and fonts.mjs held
-// byte-identical versions, and fonts.test.ts already documents what happens when
-// one rule lives in two places — both copies agree while being wrong.
+// byte-identical versions of it. Not re-exported — nothing imports it from here,
+// and `fonts.test.ts` keeps its own copy on purpose, as an oracle independent of
+// the code under test.
 import { ranges } from "./fonts.mjs"
-
-export { ranges }
 
 /**
  * The value of one custom property under `selector`, `var()` followed.
@@ -25,11 +24,19 @@ export { ranges }
  * **Scoped on purpose.** Collecting every `--*` into one map lets a later block
  * silently overwrite an earlier one, which is the bug above.
  *
- * Two limits, both fine for the four tokens the card reads, and neither detected
- * if they stop being: indirection is followed only when the value *starts with*
- * `var(`, so a `color-mix(in oklab, var(…) …)` value — every `--activity-*` —
- * comes back as raw CSS text; and the `--brand-*` pass is file-global, so the
- * very shadowing this fixes would return for a primitive redefined per theme.
+ * The `--brand-*` fallback is scoped to `:root` for the same reason. It used to
+ * be file-global, which brought the whole bug back one level down: with
+ * `.high-contrast { --brand-navy: #000 }` anywhere in the file,
+ * `token(css, ".dark", "--background")` returned black. Worse, it was
+ * *ordering*-dependent — putting `:root` last made it right again — so the
+ * answer depended on where in globals.css someone added a block.
+ *
+ * Indirection is followed only when a value *starts with* `var(`, so a
+ * `color-mix(in oklab, var(…) …)` never resolves. Rather than return that as raw
+ * text, this throws: og.mjs interpolates the result straight into a `<style>`
+ * block where `--x` is undefined, so the declaration would be invalid at
+ * computed-value time and paint nothing — a transparent bar on a card that
+ * exits 0.
  *
  * @param {string} css Stylesheet text.
  * @param {string} selector Exact selector, e.g. `:root` or `.dark`.
@@ -51,16 +58,30 @@ export function token(css, selector, name) {
     }
   }
 
-  // Primitives live on `:root`, so a `.dark` token can point at one.
+  // Primitives live on `:root`, so a `.dark` token can point at one. Two rules,
+  // both there to make the answer independent of where a block sits in the file:
+  // only `:root` blocks are read, and the **first** definition of each name
+  // wins. A regex cannot tell `:root` at the top level from one inside
+  // `@media print`, and the card has no media context — it wants the base
+  // value. Last-wins gave `#ffffff` for `--brand-navy` from a print block.
   /** @type {Record<string, string>} */
   const primitives = {}
-  for (const [, key, value] of flat.matchAll(
-    /(--brand-[\w-]+)\s*:\s*([^;]+);/g
-  )) {
-    primitives[key] = value.trim()
+  for (const block of flat.matchAll(/(?:^|[\s,}]):root\s*\{([^{}]*)\}/g)) {
+    /** @type {Record<string, string>} */
+    const declared = {}
+    for (const [, key, value] of block[1].matchAll(
+      /(--brand-[\w-]+)\s*:\s*([^;]+);/g
+    )) {
+      // Last-wins *within* one block, which is what CSS itself does.
+      declared[key] = value.trim()
+    }
+    for (const [key, value] of Object.entries(declared)) {
+      primitives[key] ??= value
+    }
   }
 
   let value = scoped[name]
+  /** @type {Set<string>} */
   const seen = new Set()
   while (value?.startsWith("var(")) {
     const ref = value.slice(4, -1).trim()
@@ -68,9 +89,16 @@ export function token(css, selector, name) {
     // src/test/contrast.ts throws on the same condition.
     if (seen.has(ref)) throw new Error(`circular var() reference at ${ref}`)
     seen.add(ref)
+    // The selector's own declaration wins over a primitive of the same name.
     value = scoped[ref] ?? primitives[ref]
   }
   if (!value) throw new Error(`${selector} has no ${name}`)
+  if (value.includes("var(")) {
+    throw new Error(
+      `${selector} ${name} resolves to ${value}, which still contains var() — ` +
+        "og.mjs would emit it into a <style> block where that name is undefined"
+    )
+  }
   return value
 }
 
@@ -82,6 +110,8 @@ export function token(css, selector, name) {
  * @returns {string} The `content` attribute value.
  */
 export function meta(html, property) {
+  // The closing quote is part of the match: without it `og:image` also matches
+  // `og:image:width` and the card would read 1200 as its image URL.
   const pattern = new RegExp(
     `<meta\\s+property="${property}"\\s+content="([^"]*)"`,
     "s"
@@ -126,6 +156,7 @@ export function notoFaces(manifest, text) {
   })
   /** @type {{ file: string, declaration: string }[]} */
   const faces = []
+  /** @type {Set<number>} */
   const covered = new Set()
 
   for (const block of manifest.split("@font-face").slice(1)) {

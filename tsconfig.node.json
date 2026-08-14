@@ -29,7 +29,11 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "scripts/**/*.mjs"],
+  /* `.ts` as well as `.mjs`: the first version globbed only `.mjs`, which left
+     `scripts/og-tokens.test.ts` — the file this PR added to prove the scripts
+     are checkable — in no project at all. `const x: number = token(123, false,
+     [])` passed lint, typecheck and test. */
+  "include": ["vite.config.ts", "scripts/**/*.mjs", "scripts/**/*.ts"],
 
   /* og.mjs is the only script that cannot be checked: it imports `playwright`,
      which is deliberately not installed, and drives a real DOM. Installing

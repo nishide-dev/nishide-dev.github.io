@@ -32,11 +32,61 @@ describe("token", () => {
     expect(token(css, ".dark", "--background")).toBe("#30364f")
   })
 
-  it("follows var() into the primitives, which only :root declares", () => {
-    // A `.dark` token pointing at a `:root` primitive has to resolve, or scoping
-    // the lookup would have broken the palette instead of fixing it.
-    expect(token(css, ".dark", "--background")).toBe("#30364f")
-    expect(token(css, ":root", "--fg")).toBe("#30364f")
+  it("prefers a selector's own declaration over a primitive of that name", () => {
+    // The previous version of this test asserted `token(css, ".dark",
+    // "--background")` a second time and called it "follows var() into the
+    // primitives" — but `--fg: var(--brand-navy)` resolves through `scoped`,
+    // never reaching the primitives map. Swapping the two lookups survived every
+    // test in the file. This distinguishes them.
+    const shadowed = `
+      :root { --brand-navy: #30364f; }
+      .dark { --brand-navy: #111111; --background: var(--brand-navy); }
+    `
+    expect(token(shadowed, ".dark", "--background")).toBe("#111111")
+  })
+
+  it("does not let a third scope shadow a :root primitive", () => {
+    // The docblock used to concede this as a limitation. It is the headline bug
+    // one level down: a file-global `--brand-*` pass is last-write-wins, so the
+    // answer depended on where in globals.css a block was added.
+    const variant = `
+      :root          { --brand-navy: #30364f; }
+      .dark          { --background: var(--brand-navy); }
+      .high-contrast { --brand-navy: #000000; }
+    `
+    expect(token(variant, ".dark", "--background")).toBe("#30364f")
+
+    const inAtRule = `
+      :root { --brand-navy: #30364f; }
+      .dark { --background: var(--brand-navy); }
+      @media print { :root { --brand-navy: #ffffff; } }
+    `
+    expect(token(inAtRule, ".dark", "--background")).toBe("#30364f")
+
+    // Two guards do this — read only `:root`, and take the first definition —
+    // and the fixtures above cannot tell them apart, because `:root` comes
+    // first in both. Here the variant is declared *before* `:root`, so
+    // first-wins alone would return black and only the `:root` restriction
+    // saves it.
+    const variantFirst = `
+      .high-contrast { --brand-navy: #000000; }
+      :root          { --brand-navy: #30364f; }
+      .dark          { --background: var(--brand-navy); }
+    `
+    expect(token(variantFirst, ".dark", "--background")).toBe("#30364f")
+  })
+
+  it("strips comments before reading declarations", () => {
+    // A commented-out value inside the block used to win, which is this file's
+    // whole failure class: a plausible-but-wrong hex on a committed card.
+    const commented =
+      ":root { --background: #f8f8ee; /* was --background: #000000; */ }"
+    expect(token(commented, ":root", "--background")).toBe("#f8f8ee")
+
+    // And a comment mentioning another selector must not be parsed as one.
+    const mentions =
+      ":root { /* the old rule was .dark { --background: #000 } */ --background: #f8f8ee; }"
+    expect(token(mentions, ":root", "--background")).toBe("#f8f8ee")
   })
 
   it("throws rather than returning undefined for a missing token", () => {
@@ -52,30 +102,33 @@ describe("token", () => {
     ).toThrow(/circular/)
   })
 
-  it("returns color-mix() as raw text — a documented limit, not a resolution", () => {
-    // Pinned so the limit is visible: the value comes back unresolved rather
-    // than throwing, so a future caller reading `--activity-*` gets CSS text.
+  it("throws when a value still contains var() it could not resolve", () => {
+    // `color-mix(in oklab, var(--x) …)` does not *start with* `var(`, so the
+    // loop never follows it. Returning it raw was worse than useless: og.mjs
+    // interpolates the result into a `<style>` block where `--x` is undefined,
+    // so the declaration is invalid at computed-value time and paints nothing —
+    // a transparent bar on a card that exits 0.
     const mixed =
       ":root { --activity-1: color-mix(in oklab, var(--x) 18%, #fff); }"
-    expect(token(mixed, ":root", "--activity-1")).toBe(
-      "color-mix(in oklab, var(--x) 18%, #fff)"
+    expect(() => token(mixed, ":root", "--activity-1")).toThrow(
+      /still contains var\(/
     )
   })
 
   it("resolves the real globals.css the card actually reads", () => {
     const real = readFileSync(join(root, "src/styles/globals.css"), "utf8")
+
+    // THE assertion. Under the historical flat-map bug `.dark` won for every
+    // selector, so both sides returned navy — and the shape checks below all
+    // still passed. This inequality is the only thing here that dies under it.
+    expect(token(real, ":root", "--background")).not.toBe(
+      token(real, ".dark", "--background")
+    )
+
     for (const name of ["--background", "--foreground", "--muted-foreground"]) {
       expect(token(real, ".dark", name)).toMatch(/^#[0-9a-f]{6}$/i)
     }
     expect(token(real, ":root", "--brand-sand")).toMatch(/^#[0-9a-f]{6}$/i)
-    // The four the card reads must not collapse onto one another.
-    const drawn = [
-      token(real, ".dark", "--background"),
-      token(real, ".dark", "--foreground"),
-      token(real, ".dark", "--muted-foreground"),
-      token(real, ":root", "--brand-sand"),
-    ]
-    expect(new Set(drawn).size).toBe(4)
   })
 })
 
@@ -155,6 +208,29 @@ describe("notoFaces", () => {
       /no Noto Sans JP subset covers/
     )
     expect(() => notoFaces(manifest, "🎉")).toThrow(/U\+1f389/)
+  })
+
+  it("throws when only *some* characters are covered", () => {
+    // The degenerate all-uncovered case above is not the real one — the card
+    // draws a mixed string. Marking every wanted codepoint covered as soon as
+    // any face matched survived every other test here, and returned a face list
+    // for `あ🎉` instead of throwing.
+    expect(() => notoFaces(manifest, "あ🎉")).toThrow(/U\+1f389/)
+    expect(() => notoFaces(manifest, "あ一🎉")).toThrow(/U\+1f389/)
+  })
+
+  it("skips a block with no unicode-range instead of crashing", () => {
+    // Fontsource has changed this file's shape before — that is the stated
+    // reason this function reads the manifest at all. Without the guard the
+    // block's missing range reaches `ranges()` and throws a TypeError, which is
+    // the failure mode the throw above exists to replace.
+    const partial = `
+      @font-face { src: url(./files/noto-sans-jp-9-wght-normal.woff2); }
+      @font-face { src: url(./files/noto-sans-jp-1-wght-normal.woff2); unicode-range: U+3042; }
+    `
+    expect(notoFaces(partial, "あ").map((f) => f.file)).toEqual([
+      "noto-sans-jp-1-wght-normal.woff2",
+    ])
   })
 
   it("covers every character the real card draws", () => {

@@ -10,9 +10,12 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    /* fonts.test.ts and og-tokens.test.ts import the plain-.mjs generators.
-       Their types come from JSDoc in those files; `checkJs` stays off here so
-       the scripts are checked once, by tsconfig.node.json, not twice. */
+    /* `src/styles/fonts.test.ts` imports the plain-.mjs generator, and with
+       fonts.d.mts gone its types come from JSDoc — without allowJs that import
+       is TS7016. `checkJs` stays off here: scripts/ is checked once, by
+       tsconfig.node.json, and checking it under `lib: DOM` + `types:
+       ["vite/client"]` would fail to resolve `node:fs` anyway.
+       (`scripts/og-tokens.test.ts` lives in the node project, not this one.) */
     "allowJs": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

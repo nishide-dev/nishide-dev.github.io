@@ -9,11 +9,13 @@
  * that at all — this repo allowlists only esbuild and lefthook.
  * Run it ad hoc instead. Node resolves a bare import from the *script's* own
  * directory rather than the working directory, so pointing a playwright-having
- * shell at this path does not work — copy the file next to that install and
- * point `SITE_ROOT` back here:
+ * shell at this path does not work — copy the files next to that install and
+ * point `SITE_ROOT` back here. **All three**: this file imports `og-tokens.mjs`,
+ * which imports `ranges` from `fonts.mjs`. Copying only this one fails with
+ * `ERR_MODULE_NOT_FOUND`.
  *
- *     cp scripts/og.mjs /somewhere/with/playwright/ && cd /somewhere/with/playwright
- *     SITE_ROOT=<repo> node og.mjs
+ *     cp scripts/og.mjs scripts/og-tokens.mjs scripts/fonts.mjs /somewhere/with/playwright/
+ *     cd /somewhere/with/playwright && SITE_ROOT=<repo> node og.mjs
  *
  * The PNG is committed, so nothing in `pnpm build` or the deploy runs this
  * script. The image itself is of course copied out of `public/` like any other
