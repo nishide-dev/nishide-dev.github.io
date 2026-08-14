@@ -14,6 +14,14 @@
     "moduleDetection": "force",
     "noEmit": true,
 
+    /* scripts/ is plain .mjs so `node scripts/fonts.mjs` needs no build step.
+       checkJs is what makes `pnpm typecheck` actually read them: without it the
+       files are merely included and never checked. Types come from JSDoc rather
+       than a hand-written .d.mts, so the declaration cannot drift from the
+       implementation — which is the failure the .d.mts invited. */
+    "allowJs": true,
+    "checkJs": true,
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -21,5 +29,17 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  /* `.ts` as well as `.mjs`: the first version globbed only `.mjs`, which left
+     `scripts/og-tokens.test.ts` — the file this PR added to prove the scripts
+     are checkable — in no project at all. `const x: number = token(123, false,
+     [])` passed lint, typecheck and test. */
+  "include": ["vite.config.ts", "scripts/**/*.mjs", "scripts/**/*.ts"],
+
+  /* og.mjs is the only script that cannot be checked: it imports `playwright`,
+     which is deliberately not installed, and drives a real DOM. Installing
+     356MB of Chromium to typecheck ~30 lines is the trade this repo already
+     refused. Everything checkable was moved into og-tokens.mjs — which is
+     included above, and tested — precisely so that this exclusion covers the
+     browser driver and nothing else. */
+  "exclude": ["scripts/og.mjs"]
 }

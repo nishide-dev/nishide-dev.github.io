@@ -9,11 +9,13 @@
  * that at all — this repo allowlists only esbuild and lefthook.
  * Run it ad hoc instead. Node resolves a bare import from the *script's* own
  * directory rather than the working directory, so pointing a playwright-having
- * shell at this path does not work — copy the file next to that install and
- * point `SITE_ROOT` back here:
+ * shell at this path does not work — copy the files next to that install and
+ * point `SITE_ROOT` back here. **All three**: this file imports `og-tokens.mjs`,
+ * which imports `ranges` from `fonts.mjs`. Copying only this one fails with
+ * `ERR_MODULE_NOT_FOUND`.
  *
- *     cp scripts/og.mjs /somewhere/with/playwright/ && cd /somewhere/with/playwright
- *     SITE_ROOT=<repo> node og.mjs
+ *     cp scripts/og.mjs scripts/og-tokens.mjs scripts/fonts.mjs /somewhere/with/playwright/
+ *     cd /somewhere/with/playwright && SITE_ROOT=<repo> node og.mjs
  *
  * The PNG is committed, so nothing in `pnpm build` or the deploy runs this
  * script. The image itself is of course copied out of `public/` like any other
@@ -31,6 +33,10 @@ import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { chromium } from "playwright"
 
+// The pure string work lives in og-tokens.mjs so it can be tested without a
+// browser; this file is the part that genuinely needs one.
+import { meta, notoFaces, token } from "./og-tokens.mjs"
+
 const root =
   process.env.SITE_ROOT ??
   join(dirname(new URL(import.meta.url).pathname), "..")
@@ -39,79 +45,19 @@ const css = readFileSync(join(root, "src/styles/globals.css"), "utf8")
 const html = readFileSync(join(root, "index.html"), "utf8")
 
 /**
- * The value of one custom property under `selector`, `var()` followed.
- *
- * Scoped on purpose: collecting every `--*` in the file into one map lets
- * `.dark` silently overwrite `:root`, which is how the first version of this
- * script produced a dark card while its comment claimed light.
- *
- * Two limits, both fine for the four tokens this card reads and neither
- * detected if they stop being: indirection is followed only when the value
- * *starts with* `var(`, so a `color-mix(in oklab, var(…) …)` value — every
- * `--activity-*` — comes back as raw CSS text; and the `--brand-*` pass below is
- * file-global, so the very shadowing this docstring credits itself with fixing
- * would return for a primitive redefined per theme.
- */
-function token(selector, name) {
-  const flat = css.replace(/\/\*[\s\S]*?\*\//g, "")
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const scoped = {}
-  for (const block of flat.matchAll(
-    new RegExp(`(?:^|[\\s,}])${escaped}\\s*\\{([^{}]*)\\}`, "g")
-  )) {
-    for (const [, key, value] of block[1].matchAll(
-      /(--[\w-]+)\s*:\s*([^;]+);/g
-    )) {
-      scoped[key] = value.trim()
-    }
-  }
-
-  // Primitives live on `:root`, so a `.dark` token can point at one.
-  const primitives = {}
-  for (const [, key, value] of flat.matchAll(
-    /(--brand-[\w-]+)\s*:\s*([^;]+);/g
-  )) {
-    primitives[key] = value.trim()
-  }
-
-  let value = scoped[name]
-  while (value?.startsWith("var(")) {
-    const ref = value.slice(4, -1).trim()
-    value = scoped[ref] ?? primitives[ref]
-  }
-  if (!value) throw new Error(`${selector} has no ${name}`)
-  return value
-}
-
-function meta(property) {
-  const pattern = new RegExp(
-    `<meta\\s+property="${property}"\\s+content="([^"]*)"`,
-    "s"
-  )
-  const inline = html.match(pattern)
-  if (inline) return inline[1]
-  // The formatter breaks long tags across lines, attribute order preserved.
-  const multiline = html.match(
-    new RegExp(`property="${property}"\\s*\\n\\s*content="([^"]*)"`, "s")
-  )
-  if (!multiline) throw new Error(`index.html has no ${property}`)
-  return multiline[1]
-}
-
-/**
  * The **dark** palette for the three semantic tokens, deliberately. A cream card
  * on a white Slack or X background all but disappears; navy reads on either. The
  * card is one fixed image, so it does not follow the reader's theme and has to
  * pick the one that survives both.
  */
-const background = token(".dark", "--background")
-const foreground = token(".dark", "--foreground")
-const muted = token(".dark", "--muted-foreground")
+const background = token(css, ".dark", "--background")
+const foreground = token(css, ".dark", "--foreground")
+const muted = token(css, ".dark", "--muted-foreground")
 // Sand, read as the primitive off `:root` — not a dark semantic like the three
-// above. Do not "fix" this to `token(".dark", "--accent")`: in dark, sand is
+// above. Do not "fix" this to `token(css, ".dark", "--accent")`: in dark, sand is
 // `--primary`, and `--accent` is #3e4661, which would paint a navy bar on a
 // navy card.
-const sand = token(":root", "--brand-sand")
+const sand = token(css, ":root", "--brand-sand")
 
 const fontDir = join(root, "node_modules/@fontsource-variable")
 const dataUri = (path) =>
@@ -120,63 +66,14 @@ const geist = dataUri(
   join(fontDir, "geist/files/geist-latin-wght-normal.woff2")
 )
 
-const title = meta("og:title")
-const description = meta("og:description")
+const title = meta(html, "og:title")
+const description = meta(html, "og:description")
 
-/** The codepoints one Fontsource `unicode-range` declaration admits. */
-function ranges(declaration) {
-  return declaration.split(",").map((part) => {
-    const [lo, hi] = part.trim().replace(/^U\+/i, "").split("-")
-    return [Number.parseInt(lo, 16), Number.parseInt(hi ?? lo, 16)]
-  })
-}
-
-/**
- * The Noto Sans JP faces needed to draw `text`, each keeping its own
- * `unicode-range` so the browser picks between them per character.
- *
- * The subset numbers are read from the package's own manifest rather than
- * written here. Fontsource splits this font into 124 files and renumbers them
- * when Noto's coverage changes, so a pinned number silently repoints at a
- * different range on a version bump — and one was already wrong: subset 58 was
- * embedded as "the Japanese this card uses" while holding maths and enclosed
- * alphanumerics, covering **none** of the characters actually drawn. Every kana
- * fell through to `sans-serif`, so the card was rendered in whatever CJK font
- * the generating machine happened to have, or in tofu on a machine with none.
- */
-function notoFaces(text) {
-  const manifest = readFileSync(join(fontDir, "noto-sans-jp/index.css"), "utf8")
-  const wanted = [...new Set(text)].map((ch) => ch.codePointAt(0))
-  const faces = []
-  const covered = new Set()
-
-  for (const block of manifest.split("@font-face").slice(1)) {
-    const file = block.match(/noto-sans-jp-[^"')]+\.woff2/)?.[0]
-    const declaration = block.match(/unicode-range:\s*([^;]+);/)?.[1]
-    if (!file || !declaration) continue
-    const admits = ranges(declaration)
-    const hits = wanted.filter((cp) =>
-      admits.some(([lo, hi]) => cp >= lo && cp <= hi)
-    )
-    if (!hits.length) continue
-    for (const cp of hits) covered.add(cp)
-    faces.push({ file, declaration })
-  }
-
-  // No face covers these, so no embed can draw them. Fail here rather than
-  // screenshotting tofu and exiting 0 over a committed PNG.
-  const missing = wanted.filter((cp) => !covered.has(cp))
-  if (missing.length) {
-    throw new Error(
-      `no Noto Sans JP subset covers ${missing
-        .map((cp) => `${String.fromCodePoint(cp)} U+${cp.toString(16)}`)
-        .join(", ")}`
-    )
-  }
-  return faces
-}
-
-const notoFaceRules = notoFaces(`${title}${description}`)
+const notoManifest = readFileSync(
+  join(fontDir, "noto-sans-jp/index.css"),
+  "utf8"
+)
+const notoFaceRules = notoFaces(notoManifest, `${title}${description}`)
   .map(
     ({ file, declaration }) =>
       `@font-face { font-family: N; src: url(${dataUri(
