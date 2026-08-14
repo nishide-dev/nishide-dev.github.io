@@ -390,8 +390,8 @@ describe("the real timeline data", () => {
   })
 
   it("is valid", () => {
-    // Carries the well-formedness checks: dates, ids, titles, ranges,
-    // relations, empty detail lines and unlabelled links.
+    // Carries the well-formedness checks: dates, ids, titles, ranges, empty
+    // detail lines and unlabelled links.
     expect(() => assertValidTimeline(timeline)).not.toThrow()
   })
 
