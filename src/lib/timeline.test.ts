@@ -7,7 +7,6 @@ import {
   formatTimelineDate,
   groupTimelineEvents,
   parseDateString,
-  resolveRelated,
   sortTimelineEvents,
   type TimelineDate,
   type TimelineDateString,
@@ -250,41 +249,12 @@ describe("groupTimelineEvents", () => {
   })
 })
 
-describe("resolveRelated", () => {
-  const lab = event("lab", { start: "2024-04", end: "ongoing" }, "affiliation")
-  const paper = { ...event("paper", { start: "2026-03" }), relatedTo: ["lab"] }
-  const talk = { ...event("talk", { start: "2026-05" }), relatedTo: ["lab"] }
-  const all = [lab, paper, talk]
-
-  it("resolves ids to events in timeline order", () => {
-    expect(resolveRelated(all, paper).map((e) => e.id)).toEqual(["lab"])
-  })
-
-  it("closes the relation from the other side", () => {
-    // The edge is written once, on the paper. Without this the lab — the hub
-    // everything hangs off — resolves to nothing.
-    expect(resolveRelated(all, lab).map((e) => e.id)).toEqual(["talk", "paper"])
-  })
-
-  it("never includes the event itself", () => {
-    const selfish = { ...paper, relatedTo: ["lab", "paper"] }
-    expect(resolveRelated([lab, selfish], selfish).map((e) => e.id)).toEqual([
-      "lab",
-    ])
-  })
-
-  it("is empty when nothing is related", () => {
-    const lone = event("lone", { start: "2020-01" })
-    expect(resolveRelated([...all, lone], lone)).toEqual([])
-  })
-})
-
 describe("assertValidTimeline", () => {
   it("accepts a well-formed set", () => {
     expect(() =>
       assertValidTimeline([
         event("lab", { start: "2024-04", end: "ongoing" }, "affiliation"),
-        { ...event("paper", { start: "2026-03" }), relatedTo: ["lab"] },
+        event("paper", { start: "2026-03" }),
       ])
     ).not.toThrow()
   })
@@ -320,24 +290,6 @@ describe("assertValidTimeline", () => {
       "a backwards range",
       [event("bad", { start: "2025-04", end: "2024-04" })],
       /ends .* before it starts/,
-    ],
-    [
-      "a dangling relation",
-      [{ ...event("paper", { start: "2026-03" }), relatedTo: ["ghost"] }],
-      /unknown id/,
-    ],
-    [
-      "a self relation",
-      [{ ...event("loop", { start: "2026-03" }), relatedTo: ["loop"] }],
-      /relates to itself/,
-    ],
-    [
-      "a duplicated relation",
-      [
-        event("lab", { start: "2024-04" }),
-        { ...event("paper", { start: "2026-03" }), relatedTo: ["lab", "lab"] },
-      ],
-      /duplicate id/,
     ],
     [
       "a malformed date",
@@ -408,14 +360,14 @@ describe("assertValidTimeline", () => {
         event("dup", { start: "2024-04" }),
         event("dup", { start: "2025-04" }),
         event("backwards", { start: "2025-04", end: "2024-04" }),
-        { ...event("dangling", { start: "2026-03" }), relatedTo: ["ghost"] },
+        { ...event("untitled", { start: "2026-03" }), title: "" },
       ])
     } catch (error) {
       message = (error as Error).message
     }
     expect(message).toContain("Duplicate timeline id")
     expect(message).toContain("before it starts")
-    expect(message).toContain("unknown id")
+    expect(message).toContain("title is empty")
   })
 })
 

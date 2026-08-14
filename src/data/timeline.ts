@@ -20,9 +20,12 @@ import type { TimelineEvent } from "@/lib/timeline"
  *   inside it.
  * - Omit `end` for a point in time. Use `"ongoing"` for something still
  *   running. An omitted `end` does not mean ongoing.
- * - `relatedTo` is written once, on whichever side reads more naturally;
- *   `resolveRelated` closes the edge from both directions. **Not rendered in
- *   v1** — the model carries it so a later detail view can.
+ * - **There is no way to relate one entry to another.** `relatedTo` and
+ *   `resolveRelated` existed for a detail view that was never built; nothing
+ *   rendered them, so the tests passed and read as though the feature worked.
+ *   Removed in #27 — `git log -S relatedTo` has the implementation if a detail
+ *   view ever arrives. Say the connection in `description` instead, where a
+ *   reader can actually see it.
  * - `description` is text, not HTML. Say what was done rather than how
  *   impressive it was, and keep proper nouns in their official spelling —
  *   `microbase` is lowercase.
@@ -51,7 +54,6 @@ export const timeline: TimelineEvent[] = [
     title: "国際学会 EACL 2026 で論文を発表",
     description:
       "“Mitigating Degree Bias in Hypergraphs via Attribute-as-Structure Approach” を EACL 2026（Conference of the European Chapter of the Association for Computational Linguistics）で発表しました。",
-    relatedTo: ["tti-kde"],
     links: [
       {
         label: "ACL Anthology",
@@ -66,7 +68,6 @@ export const timeline: TimelineEvent[] = [
     title: "国際学会 EACL 2026 に論文が採択",
     description:
       "“Mitigating Degree Bias in Hypergraphs via Attribute-as-Structure Approach” が EACL 2026 に採択されました。",
-    relatedTo: ["tti-kde"],
   },
   {
     // Renders the same label as the EACL presentation and lands next to it, so
@@ -79,7 +80,6 @@ export const timeline: TimelineEvent[] = [
     title: "言語処理学会第32回年次大会 若手奨励賞を受賞",
     description:
       "「マルチモーダル知識ハイパーグラフを利用した生物医学分野における知識拡張情報抽出」で、言語処理学会第32回年次大会の若手奨励賞を受賞しました。",
-    relatedTo: ["tti-kde"],
     // The `#y2026` fragment lands on 第32回; without it the reader arrives at
     // the top of a list running back to 1996.
     links: [
@@ -105,7 +105,6 @@ export const timeline: TimelineEvent[] = [
     title: "ProjectLINKS 関連の開発を担当",
     description:
       "microbase のプロジェクトとして、国土交通省 ProjectLINKS 関連の開発を担当。データ構造化アルゴリズムの開発を含むフルスタックな開発に取り組みました。",
-    relatedTo: ["microbase"],
     links: [{ label: "ProjectLINKS", href: "https://www.mlit.go.jp/links/" }],
   },
   {
