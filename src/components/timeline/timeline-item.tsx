@@ -65,7 +65,7 @@ export function TimelineItem({ event, label, repeatsDate }: TimelineItemProps) {
             own — otherwise it would run through that text. */}
         <span
           className={cn(
-            "absolute top-0 h-[9px] w-px bg-border group-first:hidden",
+            "absolute top-0 h-[9px] w-px bg-rule group-first:hidden",
             repeatsDate ? "block" : "hidden md:block"
           )}
         />
@@ -76,7 +76,7 @@ export function TimelineItem({ event, label, repeatsDate }: TimelineItemProps) {
         <span className="mt-[9px] size-1.5 rounded-full bg-muted-foreground" />
         {/* Runs from below the dot to the row boundary, which is past this
             entry's own content because the gap is padding. */}
-        <span className="absolute top-[calc(9px+0.375rem)] -bottom-entry w-px bg-border group-last:hidden" />
+        <span className="absolute top-[calc(9px+0.375rem)] -bottom-entry w-px bg-rule group-last:hidden" />
       </div>
 
       <div>

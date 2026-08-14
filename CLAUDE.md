@@ -239,6 +239,32 @@ ink is asserted at **AA against every surface** in both themes, not just against
 `outline-none` — it sits in the utilities layer and cancels the base rule. (The template's
 `focus-visible:ring-*` painted the ring inside the button, navy on navy: a 1:1 indicator.)
 
+**`--border`/`--input` are control boundaries and clear 3:1 against every surface; `--rule` is the
+decorative hairline and deliberately does not.** SC 1.4.11 applies to what identifies a control, not
+to a line that separates content — and 3:1 would turn the timeline's connecting line into a rail. The
+split is what let `--border` move: before it one token served both, at 1.5:1, correct for the rule and
+quietly non-compliant for anything else. The bound on `--rule` is *relative* (`rule < border`), not an
+absolute ceiling: WCAG has no maximum contrast, and "make the line easier to see" should not fail CI.
+
+**`shadcn add separator` — and anything else with a hairline — arrives on `bg-border` and needs
+changing to `bg-rule`.** shadcn has no separator token, so its components reach for the boundary one;
+`hr` is already overridden in the base layer, but a component is not. This belongs on the "read the
+diff" checklist above.
+
+`--card`/`--popover` are raised surfaces held a measurable step off `--background` and moving in one
+consistent direction. `--card` used to be byte-identical to the page, so the first component to use
+one would have rendered invisible — and `not.toBe(background)` does not fix that, since a one-digit
+difference is equally invisible; light mode has only 1.07:1 of room to the top of the range, so the
+floor is 1.02, not 3:1.
+
+Every token needs its `--color-*` alias in `@theme inline` or **the utility compiles to nothing**:
+the class stays in the markup, the token stays in the stylesheet, every contrast assertion still
+passes, and the element is transparent. `--color-border` happens to hard-error instead because
+`@apply border-border` cannot resolve — that asymmetry is why the alias set is asserted.
+
+None of this changed a pixel: nothing on the page renders a control boundary yet, which is exactly
+why it was safe to fix now.
+
 **Type.** Noto is in *both* stacks on purpose: Geist ships no CJK, and Geist Mono also lacks U+2197
 `↗`, which appears in mono links and `2024.04 — 現在` labels. Sizes ramp **11 / 12 / 14 / 15 / 20**.
 
