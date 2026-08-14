@@ -107,8 +107,12 @@ markdown; `description` is text, not HTML.
   each named by event id. Read the function for what it checks — a prose copy here would rot. It
   deliberately *allows* duplicate `details` lines and two links sharing an href: the renderer keys
   both by index because those are legitimate, and `timeline.test.tsx` asserts it.
-- `relatedTo` is written once, on whichever side reads more naturally; `resolveRelated` closes the
-  edge from both directions. **Nothing renders it yet** ([#27](https://github.com/nishide-dev/nishide-dev.github.io/issues/27)).
+- **There is no way to relate one entry to another.** `relatedTo`/`resolveRelated` were built for a
+  detail view that never arrived: four edges in the data, bidirectional resolution, three validation
+  branches, seven tests — and no consumer, so the suite was green and read as though the feature
+  worked. Removed in #27; `git log -S relatedTo` has it if a detail view is ever built. Until then,
+  say the connection in `description`, where a reader can see it. **Speculative structure expires** —
+  the cost is not the code, it is that passing tests stop meaning anything.
 
 ## Writing content
 

@@ -80,8 +80,6 @@ export type TimelineEvent = {
   title: string
   description?: string
   details?: string[]
-  /** Ids of other events this one belongs with, e.g. a paper to the lab. */
-  relatedTo?: string[]
   links?: TimelineLink[]
   media?: TimelineMedia[]
 }
@@ -345,29 +343,6 @@ export function groupTimelineEvents(
   return [...groups.values()]
 }
 
-/**
- * Everything on the same thread as `event`, in timeline order: what it points
- * at and what points back at it. Relations are stored once, on whichever side
- * is more natural to write — a paper naming its lab — so without closing the
- * edge the lab would resolve to nothing.
- *
- * Unknown ids are dropped rather than thrown; `assertValidTimeline` is where a
- * dangling reference is caught, and that only holds when `events` is the whole
- * timeline.
- */
-export function resolveRelated(
-  events: readonly TimelineEvent[],
-  event: TimelineEvent
-): TimelineEvent[] {
-  const outgoing = new Set(event.relatedTo ?? [])
-  const related = events.filter(
-    (other) =>
-      other.id !== event.id &&
-      (outgoing.has(other.id) || other.relatedTo?.includes(event.id) === true)
-  )
-  return sortTimelineEvents(related)
-}
-
 function describe(event: TimelineEvent, problem: string): string {
   return `Timeline event "${event.id || "(empty id)"}": ${problem}`
 }
@@ -432,22 +407,6 @@ export function assertValidTimeline(events: readonly TimelineEvent[]): void {
     for (const link of event.links ?? []) {
       if (link.label.trim() === "") {
         problems.push(describe(event, `link "${link.href}" has no label`))
-      }
-    }
-  }
-
-  for (const event of events) {
-    const related = event.relatedTo ?? []
-    const unique = new Set(related)
-
-    if (unique.size !== related.length) {
-      problems.push(describe(event, "relatedTo contains a duplicate id"))
-    }
-    for (const id of unique) {
-      if (id === event.id) {
-        problems.push(describe(event, "relates to itself"))
-      } else if (!seen.has(id)) {
-        problems.push(describe(event, `relates to unknown id "${id}"`))
       }
     }
   }
