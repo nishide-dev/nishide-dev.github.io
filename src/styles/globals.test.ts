@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest"
 import {
   collectCustomProperties,
   contrastRatio,
+  relativeLuminance,
   resolveToken,
 } from "@/test/contrast"
 
@@ -86,8 +87,14 @@ describe.each(["light", "dark"] as const)("%s theme", (theme) => {
   // Nothing renders these today — the only boundary this page draws is the focus
   // outline — so the gate is here to make the *first* real input or bordered
   // button correct, rather than subtly non-compliant at the 1.5:1 they used to
-  // sit at. Checked against every surface, not just the page: a bordered control
-  // inside a `bg-muted` row is ordinary markup.
+  // sit at. Checked against every surface because a bordered control inside a
+  // `bg-muted` row is ordinary markup.
+  //
+  // Read the count honestly: these tokens sit outside the whole surface range,
+  // so contrast is monotone in surface lightness and exactly one surface binds
+  // per theme — `accent` in light (3.29), `popover` in dark (3.20). The other
+  // ten cases cannot fail while those pass. The fan-out is defence-in-depth for
+  // a future surface, not twelve independent guarantees.
   it.each(
     ["border", "input"].flatMap((token) =>
       SURFACES.map((surface) => [token, surface] as const)
@@ -100,26 +107,72 @@ describe.each(["light", "dark"] as const)("%s theme", (theme) => {
     ).toBeGreaterThanOrEqual(3)
   })
 
-  // `--rule` is the decorative hairline (the timeline's connecting line) and is
-  // deliberately *exempt* from the above: a rule that separates content is not a
-  // control boundary, and 3:1 would turn a hairline into a rail. It still has a
-  // floor, so it cannot silently vanish into the page.
-  it("rule stays a hairline, not a boundary", () => {
-    const ratio = contrastRatio(
+  // `--rule` is the decorative hairline — the timeline's connecting line and
+  // `<hr>` — and is deliberately exempt from 3:1: a rule that separates content
+  // identifies no control.
+  //
+  // The bound is *relative*, not `< 3`. An absolute ceiling encodes taste as if
+  // it were WCAG, and would fail CI for "make the line easier to see" with no
+  // route forward — while WCAG has no maximum contrast and a 3.2:1 hairline is
+  // simply one a low-vision reader can find. What actually has to hold is that
+  // the rule stays the quieter of the two, which survives raising both.
+  it("rule is quieter than a control boundary", () => {
+    const rule = contrastRatio(
       colour(theme, "rule"),
       colour(theme, "background")
     )
-    expect(Number(ratio.toFixed(2)), "--rule").toBeGreaterThanOrEqual(1.4)
-    expect(Number(ratio.toFixed(2)), "--rule").toBeLessThan(3)
+    const border = contrastRatio(
+      colour(theme, "border"),
+      colour(theme, "background")
+    )
+    expect(
+      Number(rule.toFixed(2)),
+      "--rule has vanished into the page"
+    ).toBeGreaterThanOrEqual(1.4)
+    expect(
+      Number(rule.toFixed(2)),
+      "--rule is as loud as --border; a separator this strong belongs on --border"
+    ).toBeLessThan(Number(border.toFixed(2)))
   })
 
   // `--card` was byte-identical to `--background` in both themes, so the first
-  // shadcn component to use one would have rendered invisible. These are raised
-  // surfaces; their boundary does the identifying, but they must not be the page.
-  it.each(["card", "popover"])("%s is not the page", (token) => {
-    expect(colour(theme, token), `--${token}`).not.toBe(
-      colour(theme, "background")
-    )
+  // shadcn component to use one would have rendered invisible. `not.toBe` does
+  // not say that — `#f8f8ef` passes it and is invisible too.
+  //
+  // 1.02 rather than 3:1 because light mode has no room: `--background` is
+  // #f8f8ee, so pure white is only 1.0685:1 away and that is the entire design
+  // space. The boundary does the identifying (see the 3:1 gate above); this only
+  // has to be a step, and to be a step in the right direction — a surface darker
+  // than the page reads as a hole, not as something raised.
+  it.each(["card", "popover"] as const)(
+    "%s is a step off the page",
+    (token) => {
+      const ratio = contrastRatio(
+        colour(theme, token),
+        colour(theme, "background")
+      )
+      expect(Number(ratio.toFixed(4)), `--${token}`).toBeGreaterThanOrEqual(
+        1.02
+      )
+    }
+  )
+
+  it("raises card and popover in one consistent direction", () => {
+    // Both themes raise by getting *lighter* — conventional, and the only option
+    // in light where the page is already near-white. What matters is that the
+    // two steps agree: a `--card` lighter than the page and a `--popover` darker
+    // than the card would read as a hole punched in a raised surface. The
+    // direction is derived rather than written down, so this does not have to be
+    // re-litigated if the palette inverts.
+    const [bg, card, popover] = (
+      ["background", "card", "popover"] as const
+    ).map((t) => relativeLuminance(colour(theme, t)))
+    const away = Math.sign(card - bg)
+    expect(away, "--card does not move off the page").not.toBe(0)
+    expect(
+      Math.sign(popover - card),
+      "--popover moves back toward the page instead of further from it"
+    ).toBe(away)
   })
 
   // The ring is drawn as an offset outline, so it lands on whatever is *behind*
@@ -143,6 +196,44 @@ describe("themes", () => {
       (key) => !inherited.some((prefix) => key.startsWith(prefix))
     )
     expect(dark).toEqual(expected)
+  })
+
+  it("aliases every semantic token into @theme inline", () => {
+    // Without `--color-x: var(--x)`, `bg-x` is not a utility Tailwind knows and
+    // it compiles to **nothing** — the class stays in the markup, the token
+    // stays in the stylesheet, every contrast assertion here still passes, and
+    // the element is transparent. Verified by deleting `--color-rule` and
+    // rebuilding: `.bg-rule` vanished from dist/ and the timeline line went
+    // invisible with 335 tests and the build green.
+    //
+    // `--color-border` happens to hard-error instead, because `@apply
+    // border-border` cannot resolve. That asymmetry is exactly why this is a
+    // test: the safe-looking tokens are the ones that fail silently.
+    const aliases = collectCustomProperties(css, "@theme inline")
+    const semantic = Object.keys(collectCustomProperties(css, ":root")).filter(
+      (name) =>
+        !name.startsWith("--brand-") &&
+        !name.startsWith("--radius") &&
+        !name.startsWith("--selection")
+    )
+
+    const missing = semantic.filter(
+      (name) => aliases[`--color-${name.slice(2)}`] !== `var(${name})`
+    )
+    expect(missing, "these tokens exist but no utility can reach them").toEqual(
+      []
+    )
+  })
+
+  it("points Preflight's hr at the decorative rule", () => {
+    // Preflight gives `hr` `border-top-width: 1px`, and `* { @apply
+    // border-border }` then paints it in the control-boundary colour — 4.36:1,
+    // the rail that splitting `--rule` off exists to prevent. Deleting the
+    // override passes every other test here, because the page has no `<hr>` yet
+    // and jsdom applies no stylesheet: there is nothing to render and nothing to
+    // measure. Asserting the source is the only check available, and it is worth
+    // having precisely because the failure is invisible until someone adds one.
+    expect(css).toMatch(/\bhr\s*\{[^}]*@apply\s+border-rule\b/)
   })
 
   it("parses non-empty blocks", () => {

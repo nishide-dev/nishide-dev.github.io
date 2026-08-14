@@ -159,12 +159,18 @@
   --accent: var(--brand-sand);
   --accent-foreground: var(--brand-navy);
   --destructive: #9a3b34;
-  /* Component boundaries, on the same navy-toward-page axis as
-     `--muted-foreground`. Both were ~1.5:1, which is what a *decorative* rule
-     wants and what SC 1.4.11 forbids for anything that identifies a control.
-     Nothing rendered them at the time — the only boundary this page draws is the
-     focus outline — so raising them costs nothing visible and makes the first
-     real input or bordered button correct instead of subtly non-compliant. */
+  /* Component boundaries: navy mixed 32% toward the page. (A different axis from
+     `--muted-foreground`, which is navy 24% toward *slate* — the reasoning is
+     the same, the axis is not.) Both were ~1.5:1, which is what a decorative rule
+     wants and what SC 1.4.11 forbids for anything identifying a control. Nothing
+     rendered them at the time — the only boundary this page draws is the focus
+     outline — so raising them cost nothing visible and makes the first real
+     input or bordered button correct rather than subtly non-compliant.
+
+     `--input` is tuned for its *boundary* role only. shadcn's `Input` also uses
+     it as a fill (`dark:bg-input/30`, `disabled:bg-input/50`), where a lighter
+     value would read better; the two pull in opposite directions and the window
+     between them is about two steps wide, so check both if you move it. */
   --border: #707482;
   --input: #707482;
   --ring: var(--brand-navy);
@@ -241,6 +247,14 @@
 
   * {
     @apply border-border;
+  }
+
+  /* Preflight gives `hr` a 1px top border, which the rule above then paints in
+     the *control boundary* colour — so the next `<hr>` anyone writes would come
+     out at 4.36:1, exactly the rail splitting `--rule` off was meant to prevent.
+     A horizontal rule is the decorative case by definition. */
+  hr {
+    @apply border-rule;
   }
 
   html {

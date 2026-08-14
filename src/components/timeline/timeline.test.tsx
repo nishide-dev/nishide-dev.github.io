@@ -187,6 +187,17 @@ describe("Timeline", () => {
       expect(
         spans.some((s) => s.className.includes("group-first:hidden"))
       ).toBe(true)
+
+      // The line is painted with `--rule`, the decorative token, not `--border`,
+      // which is a control boundary held at 3:1 and would turn this hairline
+      // into a rail. Without this, switching back to `bg-border` — or to a class
+      // Tailwind does not know, which compiles to nothing and leaves the line
+      // transparent — passes the entire suite.
+      for (const segment of spans.filter((s) =>
+        /group-(first|last):hidden/.test(s.className)
+      )) {
+        expect(segment.className, "the connecting line").toContain("bg-rule")
+      }
     }
   })
 
