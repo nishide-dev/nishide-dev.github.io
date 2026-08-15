@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { Timeline } from "@/components/timeline/timeline"
+import { timeline } from "@/data/timeline"
 import type { TimelineEvent } from "@/lib/timeline"
 
 const lab: TimelineEvent = {
@@ -253,5 +254,46 @@ describe("Timeline", () => {
     for (const type of ["publication", "award", "affiliation", "PUBLICATION"]) {
       expect(screen.queryByText(type)).toBeNull()
     }
+  })
+})
+
+describe("the real timeline data", () => {
+  it("prints every date except the one genuine adjacent repeat", () => {
+    // Suppression is covered above on synthetic pairs, but nothing rendered the
+    // real array — so which dates actually reach the page was held by an `id`
+    // string and asserted nowhere. Not hypothetical: renaming `tti-kde-site` to
+    // anything sorting before `tti-kde` puts two bare `2024.04` labels next to
+    // each other, hides one, and leaves the rest of the suite green.
+    //
+    // Spelled out rather than derived. A blanket "nothing is suppressed" would
+    // be false — `eacl-2026-presentation` legitimately repeats the award's
+    // `2026.03` and is meant to be quiet — and deriving the flags from
+    // `sortTimelineEvents` would restate the implementation and pass either way.
+    //
+    // The flag is `sr-only`, not visibility: a suppressed date is not deleted,
+    // so every entry still announces its own. jsdom applies no stylesheet, so
+    // `toBeVisible` cannot tell the two apart anyway.
+    const { container } = render(<Timeline events={timeline} />)
+
+    const rendered = [...container.querySelectorAll("ol > li")].map((row) => {
+      // Exactly one `<time>` per row: `TimelineItem` renders either the visible
+      // one or the sr-only one, never both.
+      const times = row.querySelectorAll("time")
+      expect(times).toHaveLength(1)
+      return [times[0].textContent, times[0].classList.contains("sr-only")]
+    })
+
+    expect(rendered).toEqual([
+      ["2026.04", false],
+      ["2026.03", false],
+      ["2026.03", true],
+      ["2026.01", false],
+      ["2025.09", false],
+      ["2025.04 — 2026.03", false],
+      ["2024.04", false],
+      ["2024.04 — 現在", false],
+      ["2024.04", false],
+      ["2022.11 — 現在", false],
+    ])
   })
 })

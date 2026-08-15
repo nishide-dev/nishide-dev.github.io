@@ -43,6 +43,35 @@ import type { TimelineEvent } from "@/lib/timeline"
  */
 export const timeline: TimelineEvent[] = [
   {
+    id: "navis",
+    date: { start: "2026-04" },
+    type: "project",
+    // The title drops the 学内 qualifier the description carries one line below:
+    // repeating it reads as sloppy, and scope is a caveat rather than the
+    // headline fact an award would be.
+    title: "AI チャットシステム navis を開発",
+    description:
+      "シラバスや履修ガイド等に関する質問に回答する学内専用の AI チャットシステム navis を開発しました。",
+    // Points at the university's syllabus page, not at navis: navis is reachable
+    // only from the campus network, so that page is the only thing an outside
+    // reader can open.
+    //
+    // Named rather than spelled as a path, like `Award` and `ACL Anthology`. The
+    // path form tried first was `toyota-ti.ac.jp/student/jugyo/syllabus` — 38
+    // characters, and in Chromium 141 at a 320px viewport it wrapped after the
+    // hyphen (`toyota-` / `ti.ac.jp/...`), a UAX#14 break `/` would not have
+    // offered. The column it has to fit is 248px: `px-5` on the page element in
+    // `App.tsx` takes 40, and `TimelineItem`'s mobile grid another 32
+    // (`grid-cols-[1.25rem_…]` plus `gap-x-3`). `toyota-ti.ac.jp/Lab/kde` is 23
+    // and fits, which is why that one stays a path.
+    links: [
+      {
+        label: "Syllabus",
+        href: "https://www.toyota-ti.ac.jp/student/jugyo/syllabus.html",
+      },
+    ],
+  },
+  {
     id: "eacl-2026-presentation",
     date: { start: "2026-03" },
     type: "presentation",
@@ -125,6 +154,28 @@ export const timeline: TimelineEvent[] = [
     // The label names the destination rather than repeating the heading one
     // line above it. A preference, not a rule — `Award` and `ProjectLINKS`
     // above are the labels the content issue prescribed.
+    links: [
+      {
+        label: "toyota-ti.ac.jp/Lab/kde",
+        href: "https://www.toyota-ti.ac.jp/Lab/kde/ja/",
+      },
+    ],
+  },
+  {
+    // Third of three entries dated 2024-04, with 技育CAMP and the lab
+    // affiliation. All three currently show their own date, but not because the
+    // affiliation's label differs — `Timeline` suppresses on `labels[i] ===
+    // labels[i - 1]` over the *sorted* list, so what saves these is that the
+    // affiliation sorts between the two point entries and separates their two
+    // identical `2024.04` labels. That position comes from the `id` tie-break
+    // and nothing else. Rename this entry to sort before `tti-kde`, or add a
+    // fourth 2024-04 point entry, and one date becomes visually hidden (still
+    // `sr-only`, so it is announced). No test covers this.
+    id: "tti-kde-site",
+    date: { start: "2024-04" },
+    type: "project",
+    title: "知識データ工学研究室のホームページを制作",
+    description: "研究室の立ち上げに伴い、ホームページを設計・実装しました。",
     links: [
       {
         label: "toyota-ti.ac.jp/Lab/kde",
