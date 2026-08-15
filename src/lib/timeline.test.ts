@@ -189,6 +189,25 @@ describe("sortTimelineEvents", () => {
     ])
   })
 
+  it("does not make every equal label adjacent", () => {
+    // The limit of the label step, asserted so the docs cannot overstate it.
+    // Ordering ties by label only helps events that already tie on the date;
+    // `precision` widens a day to a month, so these two render `2026.03` with
+    // different sort keys (Mar 14 and Mar 1) and a Mar 5 event lands between
+    // them. The UI is deliberately weak here — separated duplicates each keep
+    // their date rather than being reordered.
+    const sorted = sortTimelineEvents([
+      event("widened", { start: "2026-03-14", precision: "month" }),
+      event("between", { start: "2026-03-05" }),
+      event("month", { start: "2026-03" }),
+    ])
+    expect(sorted.map((e) => formatTimelineDate(e.date))).toEqual([
+      "2026.03",
+      "2026.03.05",
+      "2026.03",
+    ])
+  })
+
   it("still falls through to the id when the labels match", () => {
     // The label step must not swallow the `id` step: these render identically,
     // so without the fall-through the order would be insertion order and the

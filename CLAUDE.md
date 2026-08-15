@@ -97,9 +97,16 @@ markdown; `description` is text, not HTML.
 - **`end` is three-valued**: omitted means a point in time, `"ongoing"` means still running, a date
   means a closed period. "Omitted means ongoing" cannot express an award — it would render
   `2026.03 — 現在`. `end` may be coarser than `start` and formats at its own granularity.
-- Sorting is newest-first from the date alone, ties broken by `id` **by code unit, not
-  `localeCompare`** (which returns 0 for strings differing only by normalisation and varies with ICU
-  data). A year-precision date sorts as the start of its year. Never hand-order in a component.
+- Sorting is newest-first from the date, then by **rendered label**, then by `id` — both strings **by
+  code unit, not `localeCompare`** (which returns 0 for strings differing only by normalisation and
+  varies with ICU data). A year-precision date sorts as the start of its year. Never hand-order in a
+  component. The label step is there for the UI: dates are suppressed only when adjacent, so equal
+  labels within a date tie must sit together — under an `id`-only tie-break that was decided by
+  strings the reader cannot see, and three entries dated 2024-04 printed `2024.04` twice because the
+  affiliation's `2024.04 — 現在` sorted between the two point events. It does **not** make every
+  duplicate adjacent: `precision` can widen a day to a month, so two entries can share a label and
+  still differ in sort key. Its visible cost is that a period always follows a point event sharing
+  its start date, `"2024.04"` being a prefix of `"2024.04 — 現在"`.
 - Grouping is keyed by a map, not by comparing with the previous group: differing precisions tie, so
   two events of one month can be separated by a year-precision event, which **would otherwise** emit
   that month twice with duplicate React keys.
