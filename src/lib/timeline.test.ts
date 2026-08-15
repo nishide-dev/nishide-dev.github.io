@@ -189,6 +189,23 @@ describe("sortTimelineEvents", () => {
     ])
   })
 
+  it("no longer lets a year-precision event split two January entries", () => {
+    // `2026` and `2026-01` both sort as January 1st, so they tie — and under an
+    // `id`-only tie-break the year event could land between the two January
+    // ones and make each print its date. `"2026.01"` sorts before `"2026年"`
+    // ("." is U+002E, "年" is U+5E74), so the pair now comes first.
+    const sorted = sortTimelineEvents([
+      event("a-jan", { start: "2026-01" }),
+      event("m-year", { start: "2026" }),
+      event("z-jan", { start: "2026-01" }),
+    ])
+    expect(sorted.map((e) => formatTimelineDate(e.date))).toEqual([
+      "2026.01",
+      "2026.01",
+      "2026年",
+    ])
+  })
+
   it("does not make every equal label adjacent", () => {
     // The limit of the label step, asserted so the docs cannot overstate it.
     // Ordering ties by label only helps events that already tie on the date;

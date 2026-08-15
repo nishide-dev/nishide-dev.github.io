@@ -258,7 +258,7 @@ describe("Timeline", () => {
 })
 
 describe("the real timeline data", () => {
-  it("prints every date except the one genuine adjacent repeat", () => {
+  it("prints each date once, quieting the two adjacent repeats", () => {
     // Suppression is covered above on synthetic pairs; this is the only test
     // that renders the real array and says which dates actually reach the page.
     //

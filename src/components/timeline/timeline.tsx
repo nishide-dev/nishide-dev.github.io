@@ -21,12 +21,15 @@ import {
  * - Comparing labels can only hide a duplicate that is genuinely adjacent. It
  *   never reorders anything, and it never hides a label the reader still needs.
  *
- * It does *not* catch every duplicate: sorting does not guarantee identical
- * labels land next to each other. Equal sort keys break on `id`, so a
- * year-precision event can land between two January entries; and a declared
- * coarser `precision` flattens labels that the sort still separates. Both print
- * the label twice — which is correct, because those entries are visually
- * separated and each still needs its date.
+ * It does *not* catch every duplicate. `compareTimelineEvents` orders a date tie
+ * by rendered label, so events that tie on the date do land together — a
+ * year-precision event can no longer separate two January entries, which it
+ * could while ties broke on `id` alone. What survives is the case the sort
+ * cannot reach: a declared coarser `precision` flattens two labels whose sort
+ * keys differ, so `2024-04-01` and `2024-04-20` at month precision both read
+ * `2024.04` while a plain `2024-04-10` sorts between them. That prints the
+ * label twice — which is correct, because those entries are visually separated
+ * and each still needs its date.
  */
 export function Timeline({ events }: { events: readonly TimelineEvent[] }) {
   const sorted = sortTimelineEvents(events)
