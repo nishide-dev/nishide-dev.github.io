@@ -162,15 +162,11 @@ export const timeline: TimelineEvent[] = [
     ],
   },
   {
-    // Third of three entries dated 2024-04, with 技育CAMP and the lab
-    // affiliation. All three currently show their own date, but not because the
-    // affiliation's label differs — `Timeline` suppresses on `labels[i] ===
-    // labels[i - 1]` over the *sorted* list, so what saves these is that the
-    // affiliation sorts between the two point entries and separates their two
-    // identical `2024.04` labels. That position comes from the `id` tie-break
-    // and nothing else. Rename this entry to sort before `tti-kde`, or add a
-    // fourth 2024-04 point entry, and one date becomes visually hidden (still
-    // `sr-only`, so it is announced). No test covers this.
+    // One of three entries dated 2024-04, with 技育CAMP and the lab affiliation.
+    // This one and 技育CAMP both render `2024.04`, so they sort as a pair and
+    // the page prints that label once — `compareTimelineEvents` breaks a date
+    // tie on the rendered label before the `id`, exactly so this does not depend
+    // on the ids. The affiliation follows at `2024.04 — 現在`.
     id: "tti-kde-site",
     date: { start: "2024-04" },
     type: "project",

@@ -172,6 +172,70 @@ describe("sortTimelineEvents", () => {
     ])
   })
 
+  it("keeps events rendering the same label adjacent", () => {
+    // The ids interleave deliberately: by `id` alone the order is a, b, c and
+    // the two `2024.04` entries are split by the range, so the UI prints that
+    // label twice. Breaking the tie on the label first pairs them.
+    const sorted = sortTimelineEvents([
+      event("a-point", { start: "2024-04" }),
+      event("b-range", { start: "2024-04", end: "ongoing" }),
+      event("c-point", { start: "2024-04" }),
+    ])
+    expect(sorted.map((e) => e.id)).toEqual(["a-point", "c-point", "b-range"])
+    expect(sorted.map((e) => formatTimelineDate(e.date))).toEqual([
+      "2024.04",
+      "2024.04",
+      "2024.04 — 現在",
+    ])
+  })
+
+  it("no longer lets a year-precision event split two January entries", () => {
+    // `2026` and `2026-01` both sort as January 1st, so they tie — and under an
+    // `id`-only tie-break the year event could land between the two January
+    // ones and make each print its date. `"2026.01"` sorts before `"2026年"`
+    // ("." is U+002E, "年" is U+5E74), so the pair now comes first.
+    const sorted = sortTimelineEvents([
+      event("a-jan", { start: "2026-01" }),
+      event("m-year", { start: "2026" }),
+      event("z-jan", { start: "2026-01" }),
+    ])
+    expect(sorted.map((e) => formatTimelineDate(e.date))).toEqual([
+      "2026.01",
+      "2026.01",
+      "2026年",
+    ])
+  })
+
+  it("does not make every equal label adjacent", () => {
+    // The limit of the label step, asserted so the docs cannot overstate it.
+    // Ordering ties by label only helps events that already tie on the date;
+    // `precision` widens a day to a month, so these two render `2026.03` with
+    // different sort keys (Mar 14 and Mar 1) and a Mar 5 event lands between
+    // them. The UI is deliberately weak here — separated duplicates each keep
+    // their date rather than being reordered.
+    const sorted = sortTimelineEvents([
+      event("widened", { start: "2026-03-14", precision: "month" }),
+      event("between", { start: "2026-03-05" }),
+      event("month", { start: "2026-03" }),
+    ])
+    expect(sorted.map((e) => formatTimelineDate(e.date))).toEqual([
+      "2026.03",
+      "2026.03.05",
+      "2026.03",
+    ])
+  })
+
+  it("still falls through to the id when the labels match", () => {
+    // The label step must not swallow the `id` step: these render identically,
+    // so without the fall-through the order would be insertion order and the
+    // sort would stop being total.
+    const sorted = sortTimelineEvents([
+      event("b", { start: "2026-03" }),
+      event("a", { start: "2026-03" }),
+    ])
+    expect(sorted.map((e) => e.id)).toEqual(["a", "b"])
+  })
+
   it("orders ids by code unit, not by locale", () => {
     // localeCompare returns 0 for these, collapsing a total order into
     // insertion order — and it varies with the runtime's ICU data.
@@ -474,9 +538,11 @@ describe("the real timeline data", () => {
   })
 
   it("orders newest first, with the two March entries together", () => {
-    // `tti-kde` before `tti-kde-site` and `giiku-camp-2024` before both: three
-    // entries share 2024-04, so the whole run is decided by the `id` tie-break,
-    // by code unit. Nothing about the content puts them in this order.
+    // The 2024-04 run is ordered by rendered label first: the two bare
+    // `2024.04` entries come as a pair (`giiku-camp-2024` then `tti-kde-site`,
+    // by `id`), then `tti-kde` at `2024.04 — 現在`, since `"2024.04"` is a
+    // prefix of it. That pairing is what lets the UI print the label once.
+    // Nothing about the content decides the order within the pair.
     expect(sortTimelineEvents(timeline).map((entry) => entry.id)).toEqual([
       "navis",
       "anlp-2026-award",
@@ -485,8 +551,8 @@ describe("the real timeline data", () => {
       "pksha-2025",
       "project-links",
       "giiku-camp-2024",
-      "tti-kde",
       "tti-kde-site",
+      "tti-kde",
       "microbase",
     ])
   })

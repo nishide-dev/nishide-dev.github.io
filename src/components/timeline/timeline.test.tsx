@@ -258,17 +258,19 @@ describe("Timeline", () => {
 })
 
 describe("the real timeline data", () => {
-  it("prints every date except the one genuine adjacent repeat", () => {
-    // Suppression is covered above on synthetic pairs, but nothing rendered the
-    // real array — so which dates actually reach the page was held by an `id`
-    // string and asserted nowhere. Not hypothetical: renaming `tti-kde-site` to
-    // anything sorting before `tti-kde` puts two bare `2024.04` labels next to
-    // each other, hides one, and leaves the rest of the suite green.
+  it("prints each date once, quieting the two adjacent repeats", () => {
+    // Suppression is covered above on synthetic pairs; this is the only test
+    // that renders the real array and says which dates actually reach the page.
+    //
+    // Two runs repeat here and each prints its label once: 2026.03 (the ANLP
+    // award and the EACL talk) and 2024.04 (技育CAMP and the lab homepage).
+    // Both are pairs only because `compareTimelineEvents` orders ties by
+    // rendered label — under an `id`-only tie-break the affiliation's
+    // `2024.04 — 現在` split the second pair and the label printed twice.
     //
     // Spelled out rather than derived. A blanket "nothing is suppressed" would
-    // be false — `eacl-2026-presentation` legitimately repeats the award's
-    // `2026.03` and is meant to be quiet — and deriving the flags from
-    // `sortTimelineEvents` would restate the implementation and pass either way.
+    // be false, and deriving the flags from `sortTimelineEvents` would restate
+    // the implementation and pass either way.
     //
     // The flag is `sr-only`, not visibility: a suppressed date is not deleted,
     // so every entry still announces its own. jsdom applies no stylesheet, so
@@ -291,8 +293,8 @@ describe("the real timeline data", () => {
       ["2025.09", false],
       ["2025.04 — 2026.03", false],
       ["2024.04", false],
+      ["2024.04", true],
       ["2024.04 — 現在", false],
-      ["2024.04", false],
       ["2022.11 — 現在", false],
     ])
   })
