@@ -383,9 +383,11 @@ describe("the real timeline data", () => {
       "eacl-2026-presentation",
       "giiku-camp-2024",
       "microbase",
+      "navis",
       "pksha-2025",
       "project-links",
       "tti-kde",
+      "tti-kde-site",
     ])
   })
 
@@ -417,6 +419,7 @@ describe("the real timeline data", () => {
   })
 
   it.each([
+    ["navis", "2026.04"],
     ["eacl-2026-presentation", "2026.03"],
     ["anlp-2026-award", "2026.03"],
     ["eacl-2026-accepted", "2026.01"],
@@ -424,6 +427,11 @@ describe("the real timeline data", () => {
     ["project-links", "2025.04 — 2026.03"],
     ["giiku-camp-2024", "2024.04"],
     ["tti-kde", "2024.04 — 現在"],
+    // The point-in-time counterpart the comment below asks for: with no row
+    // here, `{ start: "2026-04" }` could gain a day or an `end: "ongoing"` and
+    // ship a sharpened date or a period on a delivered project, and only the
+    // ordering test's tie-break could notice — which it would not.
+    ["tti-kde-site", "2024.04"],
     ["microbase", "2022.11 — 現在"],
   ])("renders %s as %s", (id, label) => {
     // The confirmed dates, written out. Reading them back off `entry.date`
@@ -432,11 +440,32 @@ describe("the real timeline data", () => {
     expect(formatTimelineDate(byId.get(id)?.date as never)).toBe(label)
   })
 
+  it("says navis is campus-only, in the description", () => {
+    // Affirmed rather than merely not-contradicted, on the same reasoning as
+    // `profile.test.ts` affirming the intro names the university. The title
+    // deliberately drops the qualifier, and the link points at a syllabus page
+    // rather than at navis, so this sentence is the only place a reader is told
+    // the system is not something they can open. Reword it away and the page
+    // claims an internal tool as though it were public — a factual regression
+    // with nothing else to catch it.
+    expect(byId.get("navis")?.description).toContain("学内専用")
+  })
+
   it.each([
     ["eacl-2026-presentation", "https://aclanthology.org/2026.eacl-long.81/"],
     ["anlp-2026-award", "https://www.anlp.jp/award/nenji.html#y2026"],
     ["project-links", "https://www.mlit.go.jp/links/"],
     ["tti-kde", "https://www.toyota-ti.ac.jp/Lab/kde/ja/"],
+    // Deliberately the same href as `tti-kde`: this entry is about building that
+    // site, so its own artifact is the link. Nothing validates hrefs across
+    // entries — `assertValidTimeline`'s only link check is an empty label — so
+    // this is a content decision, not a case the validator blessed. Its
+    // documented allowance for duplicates concerns one event's own lists, which
+    // the renderer keys by index.
+    ["tti-kde-site", "https://www.toyota-ti.ac.jp/Lab/kde/ja/"],
+    // The university's syllabus page rather than navis itself; the entry in
+    // `src/data/timeline.ts` has the reason.
+    ["navis", "https://www.toyota-ti.ac.jp/student/jugyo/syllabus.html"],
     ["microbase", "https://www.microgeo.biz/jp"],
   ])("points %s at %s", (id, href) => {
     // Also spelled out: a shape check like `/^https:/` passes for
@@ -445,7 +474,11 @@ describe("the real timeline data", () => {
   })
 
   it("orders newest first, with the two March entries together", () => {
+    // `tti-kde` before `tti-kde-site` and `giiku-camp-2024` before both: three
+    // entries share 2024-04, so the whole run is decided by the `id` tie-break,
+    // by code unit. Nothing about the content puts them in this order.
     expect(sortTimelineEvents(timeline).map((entry) => entry.id)).toEqual([
+      "navis",
       "anlp-2026-award",
       "eacl-2026-presentation",
       "eacl-2026-accepted",
@@ -453,6 +486,7 @@ describe("the real timeline data", () => {
       "project-links",
       "giiku-camp-2024",
       "tti-kde",
+      "tti-kde-site",
       "microbase",
     ])
   })

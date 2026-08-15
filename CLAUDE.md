@@ -296,7 +296,7 @@ utility references yet.
 
 Self-hosted through Fontsource; no Google Fonts request. Geist and Geist Mono are imported whole, but
 **Noto Sans JP is not** — its package entry declares all 124 subsets, which measured **84% of the
-render-blocking stylesheet's gzipped bytes** for a page that requests 28, and shipped 5MB of woff2
+render-blocking stylesheet's gzipped bytes** for a page that requests 31, and shipped 5MB of woff2
 regardless. `globals.css` imports the generated `./fonts.css` instead: 37.7 → 11.2 KiB gzip, `dist/`
 5.83 → 1.18 MiB, render identical to the pixel.
 
