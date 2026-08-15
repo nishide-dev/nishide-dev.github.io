@@ -270,15 +270,39 @@ export function sortKey(date: TimelineDate): number {
   return bounds(date.start).first
 }
 
-/** Newest first. Ties break on `id` by code unit — `localeCompare` returns 0
- * for distinct strings that differ only by Unicode normalisation, and its
- * ordering varies with the runtime's ICU data. */
+/**
+ * Newest first, then by rendered label, then by `id`.
+ *
+ * The label step exists for the UI: `Timeline` hides a date only when it equals
+ * the one directly above, so two entries that render the same label print it
+ * once *if they are adjacent*. Without this step adjacency was decided by the
+ * `id` tie-break alone, and three entries dated 2024-04 rendered as
+ * `2024.04` / `2024.04 — 現在` / `2024.04` — the same label twice, because the
+ * affiliation happened to sort between the two point events. Ordering ties by
+ * label makes equal labels always adjacent, so what the reader sees stops
+ * depending on strings they cannot see.
+ *
+ * This is not `groupTimelineEvents`. Grouping keys on the period and would
+ * merge `2024.04 — 現在` into `2024.04`, losing the `— 現在`; sorting keeps the
+ * labels distinct and only puts equal ones next to each other. The visible
+ * consequence is that a period now always follows a point event sharing its
+ * start date, `"2024.04"` being a prefix of `"2024.04 — 現在"`.
+ *
+ * Both string steps compare by code unit. `localeCompare` returns 0 for
+ * distinct strings differing only by Unicode normalisation, and its ordering
+ * varies with the runtime's ICU data.
+ */
 export function compareTimelineEvents(
   a: TimelineEvent,
   b: TimelineEvent
 ): number {
   const byDate = sortKey(b.date) - sortKey(a.date)
   if (byDate !== 0) return byDate
+
+  const labelA = formatTimelineDate(a.date)
+  const labelB = formatTimelineDate(b.date)
+  if (labelA !== labelB) return labelA < labelB ? -1 : 1
+
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
