@@ -4,7 +4,7 @@
 // through verbatim and only appends the hashed script and stylesheet, so
 // asserting against the source is equivalent and does not need a build.
 /// <reference types="node" />
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
@@ -61,6 +61,27 @@ describe("index.html", () => {
     expect(
       doc.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href
     ).toBe(site.url)
+  })
+
+  it("serves the header avatar as the favicon, and nothing else", () => {
+    // Asserted against `profile.avatar.src` rather than the literal path,
+    // because the point is not which file it is — it is that the tab icon and
+    // the image beside the name are *one asset*. The tag this replaced pointed
+    // at the react-template's own logo and went unnoticed from #11 onward, which
+    // is what an unasserted icon looks like.
+    //
+    // `getAttribute`, not `.href`: jsdom resolves the latter against a base URL
+    // and would compare `http://localhost/github-avatar.png` to a root path.
+    const icons = [
+      ...doc.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'),
+    ]
+    expect(icons.map((icon) => icon.getAttribute("href"))).toEqual([
+      profile.avatar.src,
+    ])
+
+    // A second icon at the default path would win for anything that requests
+    // `/favicon.ico` blindly, so the old file has to be gone, not just unlinked.
+    expect(existsSync(join(root, "public/favicon.ico"))).toBe(false)
   })
 
   it("keeps its metadata in step with the profile data", () => {

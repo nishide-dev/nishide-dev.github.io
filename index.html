@@ -36,7 +36,16 @@
     <!-- X reads the OG tags for everything except the card type. -->
     <meta name="twitter:card" content="summary_large_image" />
 
-    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <!--
+      The same file the header renders, not a second icon. `favicon.ico` here was
+      the react-template's own logo — a black circle and a white triangle — and
+      survived every commit since #11 because nothing pointed at it and nothing
+      asserted it. Pointing this at the avatar makes the two impossible to drift
+      apart, and adds no request: it is the same URL the header `<img>` already
+      fetches, and Chromium 141 loads `github-avatar.png` exactly once, with
+      `img` as the initiator. `site.test.ts` pins the pairing.
+    -->
+    <link rel="icon" href="/github-avatar.png" type="image/png" />
     <!--
       A hint some UAs use to tint browser chrome — the Chrome-for-Android
       toolbar, the iOS Safari overscroll gutter. It is not what paints behind the
