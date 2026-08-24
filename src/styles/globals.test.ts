@@ -394,6 +394,93 @@ describe("palette", () => {
   })
 })
 
+describe("the activity noise animation", () => {
+  it("declares every `animate-*` class a component uses", () => {
+    // The `--color-rule` failure, in the animation namespace. Tailwind compiles
+    // an unrecognised utility to nothing: delete or rename
+    // `--animate-activity-noise` and the class stays in the markup, the
+    // keyframes stay in the stylesheet, every other assertion here passes, and
+    // the grid sits dead for the whole settle. The tw-animate-css guard below
+    // cannot see this — its patterns are that package's names, by design.
+    const used = new Set<string>()
+    for (const file of appSourceFiles()) {
+      const source = stripCommentsAndAnchors(readFileSync(file, "utf8"))
+      for (const [, name] of source.matchAll(
+        /\banimate-([a-z][a-z0-9-]*)\b/g
+      )) {
+        used.add(name)
+      }
+    }
+    expect(used.size, "found no animate-* classes to check").toBeGreaterThan(0)
+
+    const theme = css.match(/@theme static \{([\s\S]*?)\n\}/)?.[1] ?? ""
+    for (const name of used) {
+      expect(
+        theme,
+        `--animate-${name} must be declared in @theme static`
+      ).toMatch(new RegExp(`--animate-${name}\\s*:`))
+    }
+  })
+
+  it("backs each animation token with keyframes of that name", () => {
+    // Three names in two artifacts — the token, the keyframe name inside it, and
+    // the `@keyframes` block. Nothing else makes them agree.
+    const tokens = [
+      ...css.matchAll(/--animate-([a-z][a-z0-9-]*)\s*:\s*([^;]+);/g),
+    ]
+    expect(tokens.length).toBeGreaterThan(0)
+
+    for (const [, token, value] of tokens) {
+      const keyframe = value.trim().split(/\s+/)[0]
+      expect(css, `--animate-${token} names @keyframes ${keyframe}`).toMatch(
+        new RegExp(`@keyframes\\s+${keyframe}\\s*\\{`)
+      )
+    }
+  })
+
+  it("animates a property the settle does not transition", () => {
+    // The one assertion that would have caught the implementation this replaced.
+    //
+    // The first version animated `background-color` on the cells and then swapped
+    // the class to transition `background-color` to the real band. In a browser
+    // that does nothing: cancelling an animation is invisible to the transition,
+    // so the property jumps. jsdom applies no stylesheet and runs no animations,
+    // so 346 tests passed while the graph snapped in — the transition delay and
+    // duration were both correctly applied and both did nothing.
+    //
+    // What *is* checkable is the rule itself, as a relationship between the
+    // stylesheet and the markup: the property the keyframes animate and the
+    // property the settle transitions must be disjoint. This fails if someone
+    // adds `opacity` to the keyframes, and it fails if someone simplifies
+    // `transition-opacity` to `transition-all` or back to `transition-colors`.
+    const keyframes = css.match(
+      /@keyframes\s+activity-noise\s*\{([\s\S]*?)\n\}/
+    )?.[1]
+    expect(keyframes, "@keyframes activity-noise").toBeDefined()
+
+    const animated = new Set(
+      [...(keyframes as string).matchAll(/^\s*([a-z-]+)\s*:/gm)].map(
+        ([, property]) => property
+      )
+    )
+    expect(animated).toContain("background-color")
+    expect(animated).not.toContain("opacity")
+
+    const grid = readFileSync(
+      join(SRC, "components/activity/contribution-grid.tsx"),
+      "utf8"
+    )
+    // Only the opacity family, and nothing that would sweep the animated
+    // property back in.
+    expect(grid).toMatch(/\btransition-opacity\b/)
+    for (const swept of ["transition-all", "transition-colors"]) {
+      expect(grid, `${swept} would re-include background-color`).not.toContain(
+        swept
+      )
+    }
+  })
+})
+
 describe("animation utilities", () => {
   it("uses none, which is what lets tw-animate-css stay uninstalled", () => {
     // Tailwind compiles an unrecognised utility to nothing at all, so adding a

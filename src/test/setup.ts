@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup } from "@testing-library/react"
-import { afterEach, beforeEach } from "vitest"
+import { afterEach, beforeEach, vi } from "vitest"
 
 // React Testing Library auto-configures itself only when `beforeAll`/`afterAll`
 // are globals, and vite.config.ts does not set `globals: true`. Two things are
@@ -10,6 +10,20 @@ import { afterEach, beforeEach } from "vitest"
 //   2. the act environment, so React's "not wrapped in act(...)" warning never
 //      fires and out-of-act state updates go unreported.
 afterEach(cleanup)
+
+/**
+ * Timers are global state, so one test's choice leaks into the next — the same
+ * reason storage and the OS preference are reinstalled below rather than cleared.
+ *
+ * `vi.useFakeTimers()` in a test body is only undone by a `useRealTimers()` that
+ * the test actually reaches. `github-activity.test.tsx` has one that sits after
+ * an assertion: when that assertion failed, fake timers stayed installed and
+ * timed out two later tests, so a one-line failure surfaced as four. A no-op when
+ * nothing was faked.
+ */
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean
