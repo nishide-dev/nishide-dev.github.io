@@ -35,19 +35,48 @@ export function GitHubActivity({ login }: { login: string }) {
         <ExternalLink href={`https://github.com/${login}`} label="GitHub" />
       </div>
 
-      <div style={{ minHeight: ACTIVITY_BLOCK_HEIGHT }}>
-        {state.status === "ready" ? (
-          <ErrorBoundary section="Activity">
-            <ContributionGrid calendar={state.calendar} />
-          </ErrorBoundary>
-        ) : state.status === "error" ? (
+      {/* `aria-busy` is the robust half of announcing the wait: it needs no live
+          region and no text, and it is on the wrapper rather than the grid so it
+          survives the grid swapping its own role from nothing to `img`. */}
+      <div
+        aria-busy={state.status === "loading" || undefined}
+        style={{ minHeight: ACTIVITY_BLOCK_HEIGHT }}
+      >
+        {state.status === "error" ? (
           // `status` so a reader already past this point is told, rather than
           // being left with a silent hole.
           <p className="pt-5 text-body text-muted-foreground" role="status">
             GitHub の contribution graph を読み込めませんでした。
           </p>
-        ) : null}
+        ) : (
+          <ErrorBoundary section="Activity">
+            {/* Mounted while loading too, drawing noise until the calendar
+                arrives. The grid is one element for the whole request, which is
+                what lets the settle be a CSS transition and what makes the
+                column count already correct when the data lands — see
+                ContributionGrid's docblock. */}
+            <ContributionGrid
+              calendar={state.status === "ready" ? state.calendar : null}
+            />
+          </ErrorBoundary>
+        )}
       </div>
+
+      {/* The cells are `aria-hidden` while they are noise, so without this the
+          wait is silent. Not visible text: the noise already says "loading" to
+          anyone who can see it, and a caption would be a second thing to unwind
+          on arrival.
+
+          Rendered only while loading rather than kept mounted and emptied. An
+          always-present live region is the more reliable way to announce a
+          *change*, but this is the first state, so there is no earlier text to
+          change from — and an empty `role="status"` left behind would make the
+          failure message below ambiguous to anything looking the role up. */}
+      {state.status === "loading" && (
+        <p className="sr-only" role="status">
+          GitHub の contribution graph を読み込んでいます。
+        </p>
+      )}
     </section>
   )
 }

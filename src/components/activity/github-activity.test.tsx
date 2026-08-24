@@ -328,12 +328,14 @@ describe("GitHubActivity", () => {
     ) as unknown as typeof fetch
     renderActivity(hanging)
 
-    expect(screen.queryByRole("status")).toBeNull()
+    // The failure *text*, not `role="status"`: the loading announcement is a
+    // live region too, so the role no longer identifies the failure on its own.
+    expect(screen.queryByText(/読み込めませんでした/)).toBeNull()
     await vi.advanceTimersByTimeAsync(10_000)
     vi.useRealTimers()
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toBeInTheDocument()
+      expect(screen.getByText(/読み込めませんでした/)).toBeInTheDocument()
     })
   })
 
@@ -347,10 +349,15 @@ describe("GitHubActivity", () => {
       screen.getByRole("heading", { name: "Activity" })
     ).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /^GitHub/ })).toBeInTheDocument()
+    // No `role="img"` yet: the cells are drawing noise, and announcing that as
+    // a contribution graph would name a total nothing measured.
     expect(screen.queryByRole("img")).toBeNull()
     // Loading is not failure; saying so before the request settles would be a
-    // lie the user cannot act on.
-    expect(screen.queryByRole("status")).toBeNull()
+    // lie the user cannot act on. Asserted on the text, because the wait has a
+    // live region of its own now and `role="status"` matches both.
+    expect(screen.queryByText(/読み込めませんでした/)).toBeNull()
+    // What loading *does* say, so silence is not mistaken for correctness.
+    expect(screen.getByRole("status")).toHaveTextContent(/読み込んでいます/)
   })
 
   it("reserves the graph's height in every state", () => {
@@ -399,6 +406,86 @@ describe("GitHubActivity", () => {
     expect(screen.getByRole("img")).not.toHaveAccessibleName(
       /contribution はありません/
     )
+  })
+
+  it("draws a full grid of noise before the calendar arrives", async () => {
+    const pending = vi.fn(
+      () => new Promise(() => {})
+    ) as unknown as typeof fetch
+    const { container } = renderActivity(pending)
+
+    // The point of the placeholder: the cells exist while loading, so the
+    // settle can be a CSS transition on nodes that already have a colour.
+    // Rendering nothing here is what this replaced.
+    const cells = container.querySelectorAll(".animate-activity-noise")
+    expect(cells.length).toBe(53 * 7)
+
+    // Over the real grid, not instead of it: the cells underneath are what the
+    // fade uncovers, so they have to exist and be positioned identically.
+    expect(
+      container.querySelectorAll('[aria-hidden="true"] > div > div')
+    ).not.toHaveLength(0)
+
+    // `bg-activity-0` underneath, because the reduced-motion kill-switch ends
+    // the animation in 0.01ms with `animation-fill-mode: none` — every cell
+    // reverts to its base, and that base has to be a colour the grid can rest
+    // at rather than whichever keyframe happened to be last.
+    for (const cell of cells) {
+      expect(cell).toHaveClass("bg-activity-0")
+    }
+
+    // Negative, so the grid is mid-cycle on the first frame instead of filling
+    // in from the left — which is the very animation this replaces.
+    const delays = [...cells].map(
+      (cell) => (cell as HTMLElement).style.animationDelay
+    )
+    expect(delays.every((delay) => delay.startsWith("-"))).toBe(true)
+    // Spread across the cycle rather than shared, or the whole grid pulses in
+    // lockstep and reads as one block rather than as noise.
+    expect(new Set(delays).size).toBeGreaterThan(100)
+  })
+
+  it("settles onto the real bands on the same nodes it drew noise on", async () => {
+    const { container } = renderActivity(respondWith(OK))
+
+    const before = [...container.querySelectorAll(".animate-activity-noise")]
+    expect(before.length).toBeGreaterThan(0)
+
+    await screen.findByRole("img")
+
+    // The layer is still mounted, and still the same nodes — it *is* the
+    // transition, so unmounting it on arrival would mean no fade at all.
+    const first = before[0] as HTMLElement
+    expect(first.isConnected).toBe(true)
+    expect(first).toHaveClass("animate-activity-noise")
+
+    // What actually animates. `background-color` cannot: a transition never
+    // starts from a value an animation is producing, which was measured
+    // snapping in Chromium with the delay and duration both applied. Opacity is
+    // not animated by anything, so it has a start value.
+    expect(first).toHaveClass("opacity-0")
+    expect(first).toHaveClass("transition-opacity")
+    expect(first.style.transitionDelay).toMatch(/ms$/)
+    expect(first.style.transitionDuration).toBe("420ms")
+
+    // The real cell underneath carries the band, and carries no transition —
+    // it is already correct by the time the noise clears.
+    const real = container.querySelector('[role="img"] > div > div')
+    expect(real?.className).toMatch(/bg-(activity-\d|transparent)/)
+    expect(real?.className).not.toMatch(/transition/)
+  })
+
+  it("keeps the noise out of the accessibility tree", async () => {
+    const pending = vi.fn(
+      () => new Promise(() => {})
+    ) as unknown as typeof fetch
+    const { container } = renderActivity(pending)
+
+    // Announcing noise as a contribution graph would state a total nothing
+    // measured. The wait is announced in words instead.
+    expect(screen.queryByRole("img")).toBeNull()
+    expect(screen.getByRole("status")).toHaveTextContent(/読み込んでいます/)
+    expect(container.querySelector("[aria-busy='true']")).toBeInTheDocument()
   })
 
   it("does not render a repository ranking", async () => {

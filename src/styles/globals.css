@@ -94,6 +94,42 @@
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
+
+  /* The only animation this project declares. `tw-animate-css` is uninstalled
+     and `globals.test.ts` fails if one of *its* utility names appears in the
+     source — that list is specific to that package (`animate-in`, `fade-in`,
+     `animate-accordion-*`, `animation-duration-`, …), so a keyframe of our own
+     passes it. Do not rename this to anything matching those patterns.
+
+     The cells carry `bg-activity-0` underneath. `animation-fill-mode` defaults
+     to `none`, and the global reduced-motion kill-switch overrides only
+     duration and iteration-count, so under `prefers-reduced-motion` the
+     animation finishes in 0.01ms and every cell reverts to that base — a still
+     level-0 grid rather than whatever colour the last keyframe held. That is
+     the whole reduced-motion story; there is no second code path. */
+  --animate-activity-noise: activity-noise 1.9s ease-in-out infinite;
+}
+
+/* Walks the real bands rather than fading one colour, so the placeholder reads
+   as a graph with no data in it yet instead of a pulsing block. It never
+   reaches `--activity-0`: a cell resting at the empty colour mid-cycle looks
+   like a hole, and the bands either side of it are what make it read as noise.
+   Cells are spread across the cycle by a negative `animation-delay`, so the
+   grid is already busy on the first frame instead of filling in from the left. */
+@keyframes activity-noise {
+  0%,
+  100% {
+    background-color: var(--activity-1);
+  }
+  30% {
+    background-color: var(--activity-4);
+  }
+  55% {
+    background-color: var(--activity-2);
+  }
+  80% {
+    background-color: var(--activity-3);
+  }
 }
 
 /* `inline` is correct here and only here: these alias theme-switchable
