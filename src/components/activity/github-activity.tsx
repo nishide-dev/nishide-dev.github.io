@@ -35,9 +35,11 @@ export function GitHubActivity({ login }: { login: string }) {
         <ExternalLink href={`https://github.com/${login}`} label="GitHub" />
       </div>
 
-      {/* `aria-busy` is the robust half of announcing the wait: it needs no live
-          region and no text, and it is on the wrapper rather than the grid so it
-          survives the grid swapping its own role from nothing to `img`. */}
+      {/* `aria-busy` marks the region as unsettled — no live region and no text
+          needed — and sits on the wrapper rather than the grid so it survives the
+          grid swapping its own role from nothing to `img`. It is an annotation,
+          not an announcement: on a generic container most AT does not surface it,
+          so the `sr-only` status below is what actually speaks. */}
       <div
         aria-busy={state.status === "loading" || undefined}
         style={{ minHeight: ACTIVITY_BLOCK_HEIGHT }}

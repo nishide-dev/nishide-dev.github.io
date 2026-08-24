@@ -245,7 +245,7 @@ describe("GitHubActivity", () => {
     renderActivity(respondWith({ error: "nope" }, false))
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent(
+      expect(screen.getByText(/読み込めませんでした/)).toHaveTextContent(
         /読み込めませんでした/
       )
     })
@@ -268,7 +268,10 @@ describe("GitHubActivity", () => {
     renderActivity(respondWith(OK, false))
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toBeInTheDocument()
+      // The failure *text*, not the role: loading now has a live region of its
+      // own, so `role="status"` is satisfied synchronously by the wait and
+      // `waitFor` returns before the request has settled at all.
+      expect(screen.getByText(/読み込めませんでした/)).toBeInTheDocument()
     })
     expect(screen.queryByRole("img")).toBeNull()
     expect(String(consoleWarn.mock.calls[0][1])).toMatch(/503/)
@@ -283,7 +286,10 @@ describe("GitHubActivity", () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toBeInTheDocument()
+      // The failure *text*, not the role: loading now has a live region of its
+      // own, so `role="status"` is satisfied synchronously by the wait and
+      // `waitFor` returns before the request has settled at all.
+      expect(screen.getByText(/読み込めませんでした/)).toBeInTheDocument()
     })
     expect(String(consoleWarn.mock.calls[0][1])).toContain("not found")
   })
@@ -293,7 +299,10 @@ describe("GitHubActivity", () => {
     renderActivity(respondWith({ contributions: "not an array" }))
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toBeInTheDocument()
+      // The failure *text*, not the role: loading now has a live region of its
+      // own, so `role="status"` is satisfied synchronously by the wait and
+      // `waitFor` returns before the request has settled at all.
+      expect(screen.getByText(/読み込めませんでした/)).toBeInTheDocument()
     })
     expect(screen.queryByRole("img")).toBeNull()
   })
@@ -306,7 +315,10 @@ describe("GitHubActivity", () => {
     renderActivity(failing)
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toBeInTheDocument()
+      // The failure *text*, not the role: loading now has a live region of its
+      // own, so `role="status"` is satisfied synchronously by the wait and
+      // `waitFor` returns before the request has settled at all.
+      expect(screen.getByText(/読み込めませんでした/)).toBeInTheDocument()
     })
     expect(
       screen.getByRole("heading", { name: "Activity" })
@@ -418,13 +430,28 @@ describe("GitHubActivity", () => {
     // settle can be a CSS transition on nodes that already have a colour.
     // Rendering nothing here is what this replaced.
     const cells = container.querySelectorAll(".animate-activity-noise")
-    expect(cells.length).toBe(53 * 7)
+    const cellCount = 53 * 7
+    expect(cells.length).toBe(cellCount)
 
-    // Over the real grid, not instead of it: the cells underneath are what the
-    // fade uncovers, so they have to exist and be positioned identically.
-    expect(
-      container.querySelectorAll('[aria-hidden="true"] > div > div')
-    ).not.toHaveLength(0)
+    // Over the real grid, not instead of it. Scoped, because the noise layer is
+    // itself `aria-hidden` — `[aria-hidden="true"] > div > div` matched its own
+    // cells, so this passed with the real grid deleted entirely.
+    const layer = container.querySelector('[data-testid="activity-noise"]')
+    const real = container.querySelector(".relative > div:first-child")
+    expect(layer).toBeInTheDocument()
+    expect(real).not.toBe(layer)
+
+    // Column and cell parity is the whole substance of "`inset-0` lines the two
+    // up exactly".
+    // `:scope >` because a bare `div > div` also matches the columns themselves,
+    // which are children of a div — 53 columns plus 371 cells reads as 424.
+    expect(real?.children.length).toBe(layer?.children.length)
+    expect(real?.querySelectorAll(":scope > div > div").length).toBe(cellCount)
+    expect(layer?.querySelectorAll(":scope > div > div").length).toBe(cellCount)
+    expect(layer).toHaveClass("absolute", "inset-0")
+    expect(real?.parentElement).toHaveClass("relative")
+    // Or the fade leaves the graph unhoverable for the whole settle.
+    expect(layer).toHaveClass("pointer-events-none")
 
     // `bg-activity-0` underneath, because the reduced-motion kill-switch ends
     // the animation in 0.01ms with `animation-fill-mode: none` — every cell
@@ -442,7 +469,7 @@ describe("GitHubActivity", () => {
     expect(delays.every((delay) => delay.startsWith("-"))).toBe(true)
     // Spread across the cycle rather than shared, or the whole grid pulses in
     // lockstep and reads as one block rather than as noise.
-    expect(new Set(delays).size).toBeGreaterThan(100)
+    expect(new Set(delays).size).toBeGreaterThan(300)
   })
 
   it("settles onto the real bands on the same nodes it drew noise on", async () => {
@@ -468,11 +495,50 @@ describe("GitHubActivity", () => {
     expect(first.style.transitionDelay).toMatch(/ms$/)
     expect(first.style.transitionDuration).toBe("420ms")
 
+    // And the region stops claiming to be busy. `aria-busy={… || undefined}` is
+    // one refactor away from a literal `false`, which reads as present.
+    expect(container.querySelector("[aria-busy]")).toBeNull()
+
     // The real cell underneath carries the band, and carries no transition —
     // it is already correct by the time the noise clears.
     const real = container.querySelector('[role="img"] > div > div')
     expect(real?.className).toMatch(/bg-(activity-\d|transparent)/)
     expect(real?.className).not.toMatch(/transition/)
+  })
+
+  it("drops the noise layer once the settle is over", async () => {
+    vi.useFakeTimers()
+    renderActivity(respondWith(OK))
+    await vi.waitFor(() => expect(screen.queryByRole("img")).not.toBeNull())
+
+    const layer = () => document.querySelector('[data-testid="activity-noise"]')
+
+    // Derived from the DOM, not from a restated constant: the longest delay the
+    // component actually wrote, plus the fade it actually wrote.
+    const written = [
+      ...document.querySelectorAll<HTMLElement>(".animate-activity-noise"),
+    ].map(
+      (cell) =>
+        Number.parseFloat(cell.style.transitionDelay) +
+        Number.parseFloat(cell.style.transitionDuration)
+    )
+    const last = Math.max(...written)
+    expect(last).toBeGreaterThan(0)
+
+    // Still there while any cell is mid-fade — unmount early and the cells the
+    // sweep was built for snap instead of fading.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(last - 1)
+    })
+    expect(layer()).toBeInTheDocument()
+
+    // Gone afterwards, or a 371-node layer keeps an `infinite` animation
+    // repainting behind `opacity: 0` for the life of the page.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000)
+    })
+    expect(layer()).toBeNull()
+    vi.useRealTimers()
   })
 
   it("keeps the noise out of the accessibility tree", async () => {

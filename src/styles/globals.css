@@ -101,12 +101,15 @@
      `animate-accordion-*`, `animation-duration-`, …), so a keyframe of our own
      passes it. Do not rename this to anything matching those patterns.
 
-     The cells carry `bg-activity-0` underneath. `animation-fill-mode` defaults
-     to `none`, and the global reduced-motion kill-switch overrides only
-     duration and iteration-count, so under `prefers-reduced-motion` the
-     animation finishes in 0.01ms and every cell reverts to that base — a still
-     level-0 grid rather than whatever colour the last keyframe held. That is
-     the whole reduced-motion story; there is no second code path. */
+     The cells carry `bg-activity-0` underneath. The global reduced-motion
+     kill-switch overrides animation duration and iteration-count — and
+     transition-duration, which matters because the settle is an opacity
+     transition — but never `animation-fill-mode`, which defaults to `none`. So
+     under `prefers-reduced-motion` the animation finishes in 0.01ms and every
+     cell reverts to that base: a still level-0 grid rather than whatever colour
+     the last keyframe held. It does not clear instantly, since
+     `transition-delay` is not overridden, but every flip is. That is the whole
+     reduced-motion story; there is no second code path. */
   --animate-activity-noise: activity-noise 1.9s ease-in-out infinite;
 }
 

@@ -41,9 +41,12 @@ const MONTH_ROW = 6 + 18
  * settles. Exported so the reservation cannot drift from the layout. */
 export const ACTIVITY_BLOCK_HEIGHT = TOOLTIP_BAND + GRID_HEIGHT + MONTH_ROW
 
-/** Columns to draw before the calendar arrives. A year spans at most 53 weeks,
- * and the layout effect clamps this to what fits on the first frame — so the
- * placeholder never shows more columns than the real grid will. */
+/** Columns to draw before the calendar arrives. 53 is the widest a year's graph
+ * gets, and the layout effect clamps it to the measured width before paint, so
+ * the placeholder is never *wider* than the viewport allows. It is not clamped
+ * against the payload: an account with less than a year of history narrows the
+ * grid on arrival, and the surplus noise columns unmount rather than fade. The
+ * API returns a full year, so that is theoretical. */
 const MAX_WEEKS = 53
 
 /** Must match `--animate-activity-noise` in globals.css: cells are spread
@@ -53,16 +56,28 @@ const NOISE_CYCLE = 1900
 /**
  * The settle, in ms: per-column stagger, per-cell jitter, and the fade itself.
  *
- * `background-color` cannot carry this. A transition never starts from a value
- * an animation is producing — remove the animation and the computed value
- * reverts to the base in the same style change, so there is no start value and
- * the property jumps. Measured in Chromium 141: 169 frames after the class swap
- * held exactly one colour, with `transition-duration: 0.42s` and a per-cell
- * `transition-delay` both correctly applied and both doing nothing.
+ * `background-color` cannot carry this, and the reason is the *end* of the
+ * transition rather than its start. css-transitions-1 computes the after-change
+ * style using the `animation-*` values from the before-change style, and says so
+ * explicitly: it "does not differ from the before-change style due to newly
+ * created or canceled CSS Animations". Cancelling the animation therefore
+ * produces no computed change for `background-color`, no transition is ever
+ * generated, and the property jumps when the animation stops applying. (The
+ * start value is not the problem — before-change style *does* include the
+ * running animation's current value.) Measured in Chromium 141: 169 frames after
+ * the class swap held exactly one colour, with `transition-duration: 0.42s` and
+ * a per-cell `transition-delay` both correctly applied and both doing nothing.
  *
  * So the noise is a layer of its own over the real grid, and what transitions is
- * its `opacity` — which nothing is animating, so it has a start value. The real
- * cells underneath are already correct by the time it clears.
+ * its `opacity` — which nothing is animating, so no animation suppresses it.
+ * The real cells underneath are already correct by the time it clears.
+ *
+ * That is the whole reason. It is *not* a compositing win: this design still
+ * ends with one opacity transition per cell, and adds an infinite
+ * `background-color` animation per cell on top, which composites not at all. The
+ * paint is affordable either way — 371 cells of 10x10px is ~37,000px² — so the
+ * argument for the layer is that the other version does not work, not that this
+ * one is cheaper.
  */
 const SETTLE_STAGGER = 7
 const SETTLE_JITTER = 90
@@ -145,17 +160,26 @@ const EMPTY_WEEK: ContributionWeek = [null, null, null, null, null, null, null]
  * transition — unmount it the moment the data lands and the fade never runs.
  * Once clear it goes, so an infinite animation is not left painting behind an
  * invisible element for the life of the page.
+ *
+ * Tracks `settled` rather than `mounted`, and depends on `loading` alone. The
+ * first version latched: once the timer had fired, the guard it needed to re-arm
+ * (`!mounted`) was exactly the state it had just entered, so a second wait drew a
+ * flat grid with no noise and no fade. `login` is a constant here so nothing
+ * reached it, but a hook whose job is to re-arm should not work only once.
  */
 function useNoiseLayer(loading: boolean): boolean {
-  const [mounted, setMounted] = useState(true)
+  const [settled, setSettled] = useState(false)
 
   useEffect(() => {
-    if (loading || !mounted) return undefined
-    const timer = setTimeout(() => setMounted(false), SETTLE_TOTAL)
+    if (loading) {
+      setSettled(false)
+      return undefined
+    }
+    const timer = setTimeout(() => setSettled(true), SETTLE_TOTAL)
     return () => clearTimeout(timer)
-  }, [loading, mounted])
+  }, [loading])
 
-  return mounted
+  return !settled
 }
 
 type Hovered = ContributionDay | null
@@ -188,10 +212,13 @@ export function ContributionGrid({
   const [hovered, setHovered] = useState<Hovered>(null)
   const noise = useNoiseLayer(weeks === null)
 
-  /* Built as one object because `role` and `aria-label` have to travel together
-     — a `<div aria-label>` with no role is invalid, which is what biome's
-     useAriaPropsSupportedByRole catches when the two are written as separate
-     conditional attributes. Announced as an image only once it *is* one: while
+  /* Built as one object because biome's useAriaPropsSupportedByRole cannot see
+     that two ternaries share a condition: written as separate conditional
+     attributes it reads the div as label-without-role and flags it, even though
+     that combination is unreachable here. `aria-label` on the generic role
+     really is invalid, which is why the rule exists — this spread moves the pair
+     beyond its analysis rather than fixing a bug. Announced as an image only
+     once it *is* one: while
      `calendar` is null the cells are noise, and labelling noise with a
      contribution summary would state a number nothing measured, the same
      mistake as structured data that guesses. `GitHubActivity` announces the
@@ -238,9 +265,12 @@ export function ContributionGrid({
                   className={cn(
                     "rounded-[2px]",
                     // Before the calendar arrives every cell rests at the empty
-                    // band rather than `bg-transparent`. Nothing sees it through
-                    // the noise — except under reduced motion, where the layer
-                    // above is gone in 0.01ms and this is the placeholder.
+                    // band rather than `bg-transparent`. Nothing ever sees it:
+                    // the layer above is opaque, and under reduced motion it
+                    // reverts to this same colour rather than disappearing, so
+                    // the two are indistinguishable until it clears. Keeping
+                    // them equal is the point — a `bg-transparent` grid would
+                    // show through as a hole the moment the flips begin.
                     week
                       ? // A day outside the range is not a level-0 day: level 0
                         // is a real band, and painting the padding with it would
@@ -263,11 +293,18 @@ export function ContributionGrid({
         </div>
 
         {/* The noise, over the real grid rather than instead of it. Same fixed
-            cell and gap sizes, so `inset-0` lines the two up exactly. */}
+            cell and gap sizes, so `inset-0` lines the two up exactly.
+
+            `pointer-events-none` because this layer outlives the graph becoming
+            visible by a full settle, and an `opacity-0` element is still the
+            topmost hit target. Without it, measured in Chromium 141, hovering a
+            cell did nothing for ~880ms after the data landed — the readout stayed
+            blank through the exact window a reader first reaches for the graph.
+            The hover readout above carries the same class for the same reason. */}
         {noise && (
           <div
             aria-hidden="true"
-            className="absolute inset-0 flex gap-x-[3px]"
+            className="pointer-events-none absolute inset-0 flex gap-x-[3px]"
             data-testid="activity-noise"
           >
             {columns.map((_, column) => (
