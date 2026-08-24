@@ -101,6 +101,21 @@ export default defineConfig({
       "tailwindcss/no-conflicting-classes": "error",
       "tailwindcss/no-duplicate-classes": "error",
 
+      // `scripts/fonts.mjs` spreads a string to iterate code points, which is
+      // the unit `unicode-range` is defined in, so decomposing a surrogate pair
+      // there is the required behaviour rather than the bug this rule assumes.
+      //
+      // Off project-wide rather than suppressed at the site, and the reason is
+      // narrower than it looks. A correctly placed
+      // `// oxlint-disable-next-line typescript/no-misused-spread` *is* honoured
+      // by `vp lint` — so the first version of this comment, which claimed
+      // type-aware rules cannot be suppressed by comment at all, was wrong. But
+      // the type-check gate runs `vp check --no-fmt --no-lint`, and that path
+      // still evaluates the rule and **ignores the suppression**: with the
+      // directive in place `pnpm lint` exits 0 and `pnpm typecheck` exits 1 on
+      // the same line. Nothing else in this project spreads a string.
+      "typescript/no-misused-spread": "off",
+
       // Not enabled, deliberately, and the seven index-key suppressions this
       // migration removed are therefore unguarded. `react/no-array-index-key`
       // was Biome's `noArrayIndexKey`, and it does work — an earlier probe
