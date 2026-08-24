@@ -62,14 +62,31 @@ export default defineConfig({
       tailwindcss: {
         // Required by the plugin, and the same file the build compiles, so the
         // linter resolves this project's own `@theme` tokens rather than stock
-        // Tailwind. A wrong entry point fails loud with a single
-        // `designSystemUnavailable` rather than silently skipping every rule.
+        // Tailwind. A wrong path fails loudly rather than skipping rules
+        // silently — pointing it at a non-existent file produced 183 diagnostics
+        // here, every class in the project reported as unknown, conflicting or
+        // unsorted. Loud, but not the single tidy error this comment first
+        // claimed.
         entryPoint: "src/styles/globals.css",
         // `cn()` and `cva()` build most of this project's class strings.
         // Without these the sort rule sees only bare `className` literals —
         // biome.json carried the same pair for `useSortedClasses`.
         callees: ["cn", "cva"],
       },
+    },
+    categories: {
+      // Without this the Lint gate cannot fail. oxlint resolves its enabled set
+      // at `warn` — `vp lint --print-config` showed 111 rules, 110 at warn and
+      // none at error — and `vp lint` exits 0 on warnings: a `debugger` in
+      // `src/lib/utils.ts` was reported and the gate still passed. Biome's
+      // `"preset": "recommended"` was error-severity, so this restores what the
+      // migration silently dropped rather than tightening anything.
+      //
+      // The category, not `-D all` on the command line: `all` turns on every
+      // rule oxlint ships (`no-magic-numbers`, `capitalized-comments`, …) and
+      // reported over 1,400 findings here. A CLI `-D` also overrides a per-rule
+      // `"off"` in this block, which would make the exceptions below unusable.
+      correctness: "error",
     },
     rules: {
       // What `useSortedClasses` was. Kept at warn for the same reason it was
@@ -84,15 +101,24 @@ export default defineConfig({
       "tailwindcss/no-conflicting-classes": "error",
       "tailwindcss/no-duplicate-classes": "error",
 
-      // `scripts/fonts.mjs` spreads a string to iterate code points, which is
-      // the unit a font subset is defined in — `unicode-range` lists code
-      // points, so decomposing is the required behaviour rather than the bug
-      // this rule assumes. Turned off rather than suppressed at the site: it is
-      // a type-aware rule, and neither `oxlint-disable-next-line
-      // no-misused-spread` nor the `typescript/`-prefixed form silences it
-      // (tsgolint's comment suppression is still limited). Nothing else in this
-      // project spreads a string.
-      "typescript/no-misused-spread": "off",
+      // Not enabled, deliberately, and the seven index-key suppressions this
+      // migration removed are therefore unguarded. `react/no-array-index-key`
+      // was Biome's `noArrayIndexKey`, and it does work — an earlier probe
+      // concluded it was a no-op, but oxlint's react plugin is **off by
+      // default** (`vp lint --help`: "Enable react plugin, which is turned off
+      // by default"), which is why the rule validated its own name and never
+      // fired.
+      //
+      // Restoring it is not free and is not this PR's job: `plugins: ["react"]`
+      // alone does not fire it either (it is outside `correctness`), so it needs
+      // an explicit entry, and turning the plugin on surfaces two
+      // `react/set-state-in-effect` errors — the width measurement in
+      // `contribution-grid.tsx` and the loading reset in `use-contributions.ts`,
+      // both of which are the "synchronizing with an external system" case the
+      // rule's own help text exempts. That is nine suppressions and a judgement
+      // call about a rule this project did not previously run, which belongs in
+      // its own change.
+      // "react/no-array-index-key": "error",
     },
   },
 })

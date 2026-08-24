@@ -153,9 +153,11 @@ export function requiredCharacters(repoRoot) {
   // defined here — but say so rather than casting past the check.
   return new Set(
     // Code points, deliberately: `unicode-range` is defined in them, so a
-    // surrogate pair must decompose here. oxlint's `no-misused-spread` is off
-    // for this in vite.config.ts — it is type-aware, and a line suppression
-    // does not reach it.
+    // surrogate pair must decompose here. Suppressed at the site rather than
+    // switched off project-wide — an earlier attempt concluded type-aware rules
+    // could not be suppressed by comment, but the directive had a reason comment
+    // between it and its target, which is the actual reason it did nothing.
+    // oxlint-disable-next-line typescript/no-misused-spread
     [...text].filter((ch) => {
       const cp = ch.codePointAt(0)
       return cp !== undefined && cp > 0x7f
