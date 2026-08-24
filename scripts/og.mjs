@@ -6,7 +6,7 @@
  * `~/Library/Caches/ms-playwright`), for an image that changes when the name or
  * the palette does. Carrying it in `devDependencies` would also need an
  * `allowBuilds` entry in pnpm-workspace.yaml before its postinstall could fetch
- * that at all — this repo allowlists only esbuild and lefthook.
+ * that at all — this repo allowlists only esbuild.
  * Run it ad hoc instead. Node resolves a bare import from the *script's* own
  * directory rather than the working directory, so pointing a playwright-having
  * shell at this path does not work — copy the files next to that install and

@@ -216,10 +216,14 @@ export function ContributionGrid({
      `aria-label` on the generic role is invalid, and the two ternaries share a
      condition that only this shape makes obvious. It began as a workaround —
      biome's `useAriaPropsSupportedByRole` could not see the shared condition and
-     flagged the separate-attribute form — and biome is gone; oxlint has no
-     equivalent rule, verified by putting the separate form back and getting no
-     aria diagnostic. So nothing enforces this now and it stays because it reads
-     better. Announced as an image only once it *is* one: while
+     flagged the separate-attribute form — and biome is gone. oxlint reports
+     nothing on the separate form even with `--jsx-a11y-plugin -D jsx-a11y`, so
+     there is no equivalent rule; note that simply seeing no diagnostic proves
+     nothing here, because oxlint's react and jsx-a11y plugins are off by
+     default, and that is exactly the mistake that made this project drop seven
+     `no-array-index-key` suppressions for a bad reason. Nothing enforces this
+     now; it stays because it reads better. Announced as an image only once it
+     *is* one: while
      `calendar` is null the cells are noise, and labelling noise with a
      contribution summary would state a number nothing measured, the same
      mistake as structured data that guesses. `GitHubActivity` announces the

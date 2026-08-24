@@ -7,9 +7,9 @@ one 680px column, timeline-centred. Based on
 [`nishide-dev/react-template`](https://github.com/nishide-dev/react-template).
 
 There is no router — `index.html` → `src/main.tsx` → `src/App.tsx` is the whole entry path. Do not
-add routing, MDX or a content layer without an issue. Work is tracked from
-[#1](https://github.com/nishide-dev/nishide-dev.github.io/issues/1); check the relevant child issue
-before adding features.
+add routing, MDX or a content layer without an issue. The rebuild was tracked from
+[#1](https://github.com/nishide-dev/nishide-dev.github.io/issues/1), now **closed**; later work has
+its own issues, so check for a relevant one before adding features.
 
 ## Commands
 
@@ -36,30 +36,53 @@ Every PR must pass **lint, typecheck, test, build**.
   and again in `scripts/og-tokens.mjs` (`.mjs`, typed by JSDoc under `checkJs`) — and `pnpm
 typecheck` reported `typescript(TS2322)` for both and exited 1. Re-run that check before trusting
   a version bump; `tsc -b --noEmit` still works as a second opinion.
-- `vp lint` and `vp check --no-fmt` are **not interchangeable**: a `// oxlint-disable-next-line` that
-  silences a finding under `check` can still fire under `lint`. Prefer configuring the rule in
-  `vite.config.ts` over a site suppression, and confirm with the command the gate actually runs.
 - **A suppression comment must sit on the line directly above its target.** Put the reason above the
   directive, not between the directive and the code — `oxlint-disable-next-line` applies to the next
-  _line_, which is otherwise your own comment. Type-aware rules cannot be suppressed by comment at
-  all yet; turn those off in `vite.config.ts` with a reason.
+  _line_, which is otherwise your own comment. This is the single most likely reason a directive
+  "does not work", and mistaking it for something else is how `no-misused-spread` came to be
+  disabled project-wide with a false justification attached.
+- **The type-check gate ignores site suppressions.** A correctly placed directive on a type-aware
+  rule satisfies `pnpm lint`, and `pnpm typecheck` — which is `vp check --no-fmt --no-lint` — still
+  reports it: the same line gives exit 0 from one and exit 1 from the other. So a type-aware rule you
+  need to exempt has to be turned off in `vite.config.ts`, with the reason recorded there.
+- **The Lint gate is only a gate because of `categories.correctness: "error"`.** oxlint resolves its
+  enabled set at `warn` and `vp lint` exits 0 on warnings, so without that line a `debugger` in
+  `src/` passes CI — measured, not theorised. Do not remove it, and do not reach for `-D all` on the
+  command line instead: that enables every rule oxlint ships (1,400+ findings here) and overrides
+  per-rule `"off"` entries.
 - Run `pnpm fonts` after adding **any** non-ASCII character under `src/` or to `index.html`,
   comments included. `fonts.test.ts` fails while the generated file is stale.
-- The pre-commit hook is `vp hooks` + the `staged` block in `vite.config.ts`, and it **works in a
-  worktree** — `core.hooksPath` is inherited, where lefthook's `[ ! -d .git ]` guard used to skip
-  installation entirely because `.git` is a _file_ there. It formats only; the Lint gate is CI's job.
-  CI sets `VP_GIT_HOOKS=0` so `prepare` does not write git config on a checkout that never commits.
+- The pre-commit hook has **two halves, and both are required**. `prepare` runs `vp hooks enable`,
+  which installs only the generated dispatcher under `.vite-hooks/_`; that dispatcher does
+  `[ ! -f .vite-hooks/pre-commit ] && exit 0`. `.vite-hooks/pre-commit` is project-owned, calls
+  `vp staged`, and is **committed** — `.gitignore` covers `.vite-hooks/_/` only. The first version of
+  this migration ignored the whole directory and never wrote that file, so there was no hook at all
+  while this section claimed there was; `vp hooks status` must say `Project hooks: pre-commit`.
+  It formats only; the Lint gate is CI's job. CI sets `VP_GIT_HOOKS=0` so `prepare` does not write
+  git config on a checkout that never commits.
+- **`core.hooksPath` is a relative path in the shared config**, so it is inherited by every worktree
+  but resolves per-worktree: a worktree where `pnpm install` has never run has no `.vite-hooks/_` and
+  therefore no hook, silently. That is still better than lefthook, whose `[ ! -d .git ]` guard
+  skipped installation in a worktree outright because `.git` is a _file_ there.
+- `vp staged` **stashes** while it runs. The stash stack is shared with every other worktree, so do
+  not commit from two worktrees at once.
 - `verbatimModuleSyntax` is on, so type-only imports must say `import type`. `strict`,
   `noUnusedLocals` and `noUnusedParameters` are on too.
 
-**All tool config lives in `vite.config.ts`** — `fmt`, `lint`, `staged`, `test`, `pack`. There is no
-`biome.json`, no `.oxlintrc.json`, no `lefthook.yml`. Two notes on what is in there and why:
+**All tool config lives in `vite.config.ts`** — `fmt`, `lint`, `staged`, `test`. There is no
+`biome.json`, no `.oxlintrc.json`, no `lefthook.yml`. Three notes on what is in there and why:
 
 - The `fmt` block is **biome.json's settings, transcribed** (80 columns, two spaces, double quotes,
-  no semicolons, ES5 trailing commas). At oxfmt's Prettier-compatible defaults the migration diff was
-  56 files and ~2,300 lines, almost all of it semicolons — a restyle wearing a migration's clothes.
-  Transcribed, it is 7 files, and oxfmt additionally formats Markdown, HTML and YAML, which Biome
-  here did not.
+  no semicolons, ES5 trailing commas). The reason is easy to check and does not depend on a count:
+  at oxfmt's Prettier-compatible defaults **every `.ts`/`.tsx` module in the project changes**,
+  almost entirely to add semicolons; transcribed, **no source module changes at all** — what remains
+  is `index.html`, `public/404.html`, `CLAUDE.md`, `package.json` and the generated `fonts.css`,
+  i.e. Markdown and HTML, which Biome was not formatting here. A restyle of every source file is not
+  a consequence of changing toolchain. (Two earlier attempts to put a file count here were both
+  wrong, from `git diff --stat` on a tree that already carried the migration's own edits.)
+- **Import sorting is gone.** Biome's `assist.actions.source.organizeImports` both reported and
+  fixed import order; oxfmt has no import sorting and no oxlint import-order rule is enabled, so a
+  shuffled import block now survives `pnpm format` untouched. Nothing enforces order at all.
 - **oxlint does not lint CSS.** Biome's `noImportantStyles` is gone along with its two
   `biome-ignore-start`/`-end` comments in `globals.css`; `globals.test.ts` is what actually holds the
   stylesheet to its rules and is unaffected. Tailwind class order — Biome's `useSortedClasses` — is

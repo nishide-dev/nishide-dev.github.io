@@ -32,7 +32,8 @@ package manager は **pnpm のみ**を使用する。`vp` をグローバルに�
 - Tailwind CSS v4
 - shadcn/ui + Base UI
 - Vitest + React Testing Library
-- pre-commit フックは `vp hooks`（整形のみ。lint のゲートは CI）
+- pre-commit フックは `vp hooks` の dispatcher と、コミット済みの `.vite-hooks/pre-commit`
+  （`vp staged` を呼ぶ）の**両方**で成立する。整形のみで、lint のゲートは CI
 
 ツールの設定は **`vite.config.ts` に集約**されている。`biome.json` も `lefthook.yml` も
 `.oxlintrc.json` も無い。
