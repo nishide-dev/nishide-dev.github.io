@@ -16,6 +16,11 @@ dist-ssr
 package-lock.json
 yarn.lock
 
+# The Vite+ hook dispatcher, written by `vp hooks enable` in `prepare`. The
+# `staged` rules that drive it live in vite.config.ts and are committed; this
+# directory is only the generated shim git points `core.hooksPath` at.
+.vite-hooks/
+
 # testing
 /coverage
 

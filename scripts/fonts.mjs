@@ -152,6 +152,10 @@ export function requiredCharacters(repoRoot) {
   // Spreading a string yields non-empty units, so codePointAt(0) is always
   // defined here — but say so rather than casting past the check.
   return new Set(
+    // Code points, deliberately: `unicode-range` is defined in them, so a
+    // surrogate pair must decompose here. oxlint's `no-misused-spread` is off
+    // for this in vite.config.ts — it is type-aware, and a line suppression
+    // does not reach it.
     [...text].filter((ch) => {
       const cp = ch.codePointAt(0)
       return cp !== undefined && cp > 0x7f

@@ -72,7 +72,7 @@ function readStoredTheme(storageKey: string): Theme {
     // This origin is shared with every other nishide-dev.github.io project
     // page, so a stale key written by one of them is a real input.
     return isTheme(stored) ? stored : DEFAULT_THEME
-  } catch (_error) {
+  } catch {
     // Storage can throw outright (Safari with cookies blocked, sandboxed
     // iframes), not just return null.
     return DEFAULT_THEME
@@ -151,7 +151,7 @@ export function ThemeProvider({
     (nextTheme: Theme) => {
       try {
         localStorage.setItem(storageKey, nextTheme)
-      } catch (_error) {
+      } catch {
         // ignore: localStorage unavailable, fall back to in-memory state
       }
       setThemeState(nextTheme)

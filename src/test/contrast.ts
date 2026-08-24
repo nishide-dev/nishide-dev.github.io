@@ -40,6 +40,10 @@ export function contrastRatio(a: string, b: string): number {
   return (lighter + 0.05) / (darker + 0.05)
 }
 
+// The zero-width space below is what lets this comment contain a literal `*/`
+// without terminating itself. The pattern is the subject of the comment, so it
+// cannot be moved out of it.
+// oxlint-disable-next-line no-irregular-whitespace
 /** `/* ... *​/` spans, so a commented-out declaration cannot be harvested as if
  * it were live. Without this, commenting a token out keeps its assertion green
  * while the browser resolves nothing. */

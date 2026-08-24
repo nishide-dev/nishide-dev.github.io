@@ -38,6 +38,11 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
+        # `prepare` runs `vp hooks enable`, which sets `core.hooksPath` for a
+        # checkout that will never commit. Skipping it keeps a git-config write
+        # out of the critical path of every run.
+        env:
+          VP_GIT_HOOKS: "0"
         run: pnpm install --frozen-lockfile
 
       - name: Lint

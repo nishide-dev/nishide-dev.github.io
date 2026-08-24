@@ -13,28 +13,61 @@ before adding features.
 
 ## Commands
 
-`pnpm` only — never add `package-lock.json` or `yarn.lock`.
+One toolchain: [Vite+](https://viteplus.dev) (MIT), which is Vite, Vitest, oxlint, oxfmt and
+tsgolint behind one binary. **`pnpm` only** — never add `package-lock.json` or `yarn.lock`. Always go
+through the npm scripts rather than a globally installed `vp`, so the repo and CI run the same
+pinned `vite-plus`.
 
 ```bash
-pnpm dev / build / preview
-pnpm lint / format          # biome check [--write] .
-pnpm typecheck              # tsc -b --noEmit
-pnpm test                   # vitest run
+pnpm dev / build / preview  # vp dev / build / preview
+pnpm lint                   # vp lint
+pnpm format                 # vp check --fix   (formats and applies safe lint fixes)
+pnpm typecheck              # vp check --no-fmt --no-lint
+pnpm test                   # vp test run
 pnpm fonts                  # regenerate src/styles/fonts.css
 ```
 
 Every PR must pass **lint, typecheck, test, build**.
 
-- `typecheck` must stay `tsc -b`. The root tsconfig is solution-style (`"files": []` + `references`),
-  and plain `tsc` does not follow references — it checks zero files and passes vacuously.
+- **`typecheck` is oxlint's type-aware path (tsgolint), not `tsc`.** That was not safe to assume: the
+  root tsconfig is solution-style (`"files": []` + `references`), plain `tsc` reads zero files
+  through it and passes vacuously, and tsgolint's own docs warn that project references are weakly
+  supported. It was **verified by mutation** — `const x: number = "nope"` in `src/lib/timeline.ts`,
+  and again in `scripts/og-tokens.mjs` (`.mjs`, typed by JSDoc under `checkJs`) — and `pnpm
+typecheck` reported `typescript(TS2322)` for both and exited 1. Re-run that check before trusting
+  a version bump; `tsc -b --noEmit` still works as a second opinion.
+- `vp lint` and `vp check --no-fmt` are **not interchangeable**: a `// oxlint-disable-next-line` that
+  silences a finding under `check` can still fire under `lint`. Prefer configuring the rule in
+  `vite.config.ts` over a site suppression, and confirm with the command the gate actually runs.
+- **A suppression comment must sit on the line directly above its target.** Put the reason above the
+  directive, not between the directive and the code — `oxlint-disable-next-line` applies to the next
+  _line_, which is otherwise your own comment. Type-aware rules cannot be suppressed by comment at
+  all yet; turn those off in `vite.config.ts` with a reason.
 - Run `pnpm fonts` after adding **any** non-ASCII character under `src/` or to `index.html`,
   comments included. `fonts.test.ts` fails while the generated file is stale.
-- In a git worktree `.git` is a *file*, so the `prepare` script's `[ ! -d .git ]` guard skips
-  lefthook and there is **no pre-commit hook**. Run `pnpm lint` by hand — and note `useSortedClasses`
-  is **warn**-level, so `biome check` exits 0 on it and the Lint gate never fails: class order is
-  fixed by `pnpm format` and the hook, which a worktree does not have.
+- The pre-commit hook is `vp hooks` + the `staged` block in `vite.config.ts`, and it **works in a
+  worktree** — `core.hooksPath` is inherited, where lefthook's `[ ! -d .git ]` guard used to skip
+  installation entirely because `.git` is a _file_ there. It formats only; the Lint gate is CI's job.
+  CI sets `VP_GIT_HOOKS=0` so `prepare` does not write git config on a checkout that never commits.
 - `verbatimModuleSyntax` is on, so type-only imports must say `import type`. `strict`,
   `noUnusedLocals` and `noUnusedParameters` are on too.
+
+**All tool config lives in `vite.config.ts`** — `fmt`, `lint`, `staged`, `test`, `pack`. There is no
+`biome.json`, no `.oxlintrc.json`, no `lefthook.yml`. Two notes on what is in there and why:
+
+- The `fmt` block is **biome.json's settings, transcribed** (80 columns, two spaces, double quotes,
+  no semicolons, ES5 trailing commas). At oxfmt's Prettier-compatible defaults the migration diff was
+  56 files and ~2,300 lines, almost all of it semicolons — a restyle wearing a migration's clothes.
+  Transcribed, it is 7 files, and oxfmt additionally formats Markdown, HTML and YAML, which Biome
+  here did not.
+- **oxlint does not lint CSS.** Biome's `noImportantStyles` is gone along with its two
+  `biome-ignore-start`/`-end` comments in `globals.css`; `globals.test.ts` is what actually holds the
+  stylesheet to its rules and is unaffected. Tailwind class order — Biome's `useSortedClasses` — is
+  kept by `oxlint-tailwindcss`, still warn-level and still fixed by `pnpm format` rather than failing
+  the gate, because class order changes no output CSS. That plugin needs `settings.tailwindcss.entryPoint`,
+  and it is the reason `tailwindcss` and `@tailwindcss/vite` must stay on one version: it warns loudly
+  when the engine it lints with differs from the one the build compiles with, which is how a 4.1.17 /
+  4.3.3 split in this repo was found.
 
 ## Commits and PRs
 
@@ -62,7 +95,7 @@ and bodies follow the same split. One issue = one PR.
 - **The history before this rule does not follow it** — four of the last thirteen subjects are
   Japanese. Do not copy recent commits; the commit that introduced this section is the example.
 
-State what was *measured*, not what was intended, and **name the conditions**: "faster" is not a
+State what was _measured_, not what was intended, and **name the conditions**: "faster" is not a
 measurement, and an FCP number without its throttling preset means nothing. When a review finds
 something, say what was wrong rather than what is now right.
 
@@ -90,7 +123,7 @@ axis. Content in `src/data/timeline.ts`, types and pure helpers in `src/lib/time
 markdown; `description` is text, not HTML.
 
 - Dates are `YYYY`, `YYYY-MM` or `YYYY-MM-DD` and **precision follows the string's shape** — do not
-  restate it. `precision` may only display something *coarser*; finer throws rather than inventing a
+  restate it. `precision` may only display something _coarser_; finer throws rather than inventing a
   month. `fiscal-year` must be declared (2025年 and 2025年度 are the same digits) and only on a bare
   `YYYY`, since a 年度 runs April to March. Template-literal typed, so `end: "onging"` is a compile
   error — a coarse filter only, `parseDateString` still rejects `2026-3`.
@@ -112,7 +145,7 @@ markdown; `description` is text, not HTML.
   that month twice with duplicate React keys.
 - `assertValidTimeline` runs over the **real data in the tests** and reports every problem at once,
   each named by event id. Read the function for what it checks — a prose copy here would rot. It
-  deliberately *allows* duplicate `details` lines and two links sharing an href: the renderer keys
+  deliberately _allows_ duplicate `details` lines and two links sharing an href: the renderer keys
   both by index because those are legitimate, and `timeline.test.tsx` asserts it.
 - **There is no way to relate one entry to another.** `relatedTo`/`resolveRelated` were built for a
   detail view that never arrived: four edges in the data, bidirectional resolution, three validation
@@ -129,12 +162,12 @@ markdown; `description` is text, not HTML.
   is annual and 2026 is verifiably the 32nd. EACL is not annual, so its ordinal is omitted rather
   than invented — inventing one is sharpening a date by another name.
 - **An award goes in the title**, not in `details` — a reader scanning headings never opens the body.
-  `type` still records what the event *was* (`hackathon`, not `award`); nothing renders `type`.
+  `type` still records what the event _was_ (`hackathon`, not `award`); nothing renders `type`.
 - **`国際学会` marks an international venue only.** 言語処理学会第32回年次大会 is a conference too and
-  carries no marker, because the marker says *this one was abroad*. The full name goes in the
+  carries no marker, because the marker says _this one was abroad_. The full name goes in the
   description, once.
 - **Say what was done, not how impressive it was.** Proper nouns exact: `microbase` is lowercase.
-  Prefer a link label naming the *destination* (`toyota-ti.ac.jp/Lab/kde`) over repeating the heading
+  Prefer a link label naming the _destination_ (`toyota-ti.ac.jp/Lab/kde`) over repeating the heading
   above it — a preference, not a rule.
 - `profile.test.ts` **affirms** the intro names the university, not only that it avoids things, or it
   could lose it entirely with the suite green. It exempts `M2` by removing it and refusing every
@@ -161,7 +194,7 @@ no badge, no nested timeline, no scroll reveal.
   accessibility tree. `role="list"` is redundant per spec and load-bearing in practice; it is off the
   prop type so a caller cannot hand it away.
 - `ExternalLink` is the one link treatment, with closed props — `target` and `rel` cannot be
-  overridden. `Href` is a template literal because `"github.com/x"` is a *valid relative path*, so a
+  overridden. `Href` is a template literal because `"github.com/x"` is a _valid relative path_, so a
   missing scheme would silently resolve against this origin.
 - The timeline sits inside an `ErrorBoundary`: `formatTimelineDate` rejects rather than coerces, and
   React unmounts the whole tree on an uncaught render error.
@@ -205,7 +238,7 @@ duplicate the same decision, so three rules keep them from drifting:
 - **Any stored value that is not `light`/`dark` means system.** The whole origin shares one
   `localStorage`, so a stale key from another project page is a real input.
 - **The default theme and storage key are not props** — the script decides before React exists. It
-  guards only the storage *read*, which can throw (Safari with cookies blocked); letting that skip
+  guards only the storage _read_, which can throw (Safari with cookies blocked); letting that skip
   the whole block would drop the system preference too.
 
 `useTheme()` exposes the **choice**, not the resolution — showing the resolution makes "system,
@@ -254,7 +287,7 @@ ink is asserted at **AA against every surface** in both themes, not just against
 decorative hairline and deliberately does not.** SC 1.4.11 applies to what identifies a control, not
 to a line that separates content — and 3:1 would turn the timeline's connecting line into a rail. The
 split is what let `--border` move: before it one token served both, at 1.5:1, correct for the rule and
-quietly non-compliant for anything else. The bound on `--rule` is *relative* (`rule < border`), not an
+quietly non-compliant for anything else. The bound on `--rule` is _relative_ (`rule < border`), not an
 absolute ceiling: WCAG has no maximum contrast, and "make the line easier to see" should not fail CI.
 
 **`shadcn add separator` — and anything else with a hairline — arrives on `bg-border` and needs
@@ -276,7 +309,7 @@ passes, and the element is transparent. `--color-border` happens to hard-error i
 None of this changed a pixel: nothing on the page renders a control boundary yet, which is exactly
 why it was safe to fix now.
 
-**Type.** Noto is in *both* stacks on purpose: Geist ships no CJK, and Geist Mono also lacks U+2197
+**Type.** Noto is in _both_ stacks on purpose: Geist ships no CJK, and Geist Mono also lacks U+2197
 `↗`, which appears in mono links and `2024.04 — 現在` labels. Sizes ramp **11 / 12 / 14 / 15 / 20**.
 
 - Two pairs share a size deliberately, each distinguished by another property: `label`/`meta` by
@@ -288,7 +321,7 @@ why it was safe to fix now.
   not distinguish.** `App.test.tsx` asserts the `h1` carries `text-name` — without it, reverting
   passed lint, typecheck and the whole suite.
 - **A new `--text-*` must be registered in `src/lib/utils.ts`**, or tailwind-merge reads it as a text
-  *colour* and `cn()` silently drops the size.
+  _colour_ and `cn()` silently drops the size.
 - 16px for the lead was tried and reverted: it split 取り組む across a 110px orphan line, which
   `word-break: auto-phrase` exists to avoid.
 
@@ -322,8 +355,8 @@ version. **Coverage** and **no waste** say something true about the site; equiva
 artifact matches the script, so it cannot see a wrong corpus rule — hence the test imports
 `sourceFiles` from the generator rather than keeping a second copy that could agree with it. It
 compares whitespace-insensitively because `pnpm format` reformats the generated file; `pnpm fonts`
-therefore runs the generator **and** Biome, so it reproduces the committed bytes and a second run is
-a no-op.
+therefore runs the generator **and** `vp fmt`, so it reproduces the committed bytes and a second run
+is a no-op.
 
 `font-display: swap` is kept: its CLS is real (aborting every woff2 takes CLS to exactly 0) but
 0.0003 against a 0.1 threshold does not justify a `size-adjust` fallback and its drift surface.
@@ -359,13 +392,13 @@ the tags together, so do not tidy it away.
   once it runs, reading the computed token rather than restating a hex.
 
 `public/og.png` is committed, not built. `scripts/og.mjs` reads the palette from `globals.css` and the
-words from `index.html`'s `og:` tags, which removes drift at *generation* time and no further: **the
+words from `index.html`'s `og:` tags, which removes drift at _generation_ time and no further: **the
 PNG does not update itself**, so editing the intro or the palette means running the script again. It
 uses the **dark** palette deliberately (a cream card disappears on a white Slack background), and its
 **subset numbers come from the package manifest, never written down** — the first version embedded
-subset 58 as "the Japanese this card uses"; it holds maths symbols and covered *none* of the 58
+subset 58 as "the Japanese this card uses"; it holds maths symbols and covered _none_ of the 58
 characters drawn. Playwright is **not** a dependency (356MB); run the script ad hoc, copied next to a
-Playwright install, since Node resolves bare imports from the *script's* directory.
+Playwright install, since Node resolves bare imports from the _script's_ directory.
 
 `public/404.html` is a real 404, not an SPA fallback — no history rewrite, no bundle — and exists
 because the old Next.js site published `/profile`, `/research` and `/works/*`. `vite preview` serves
@@ -397,23 +430,24 @@ adding a router would mean adding one.
 
 ## Testing
 
-Vitest + jsdom + React Testing Library, tests co-located with the code.
+Vitest through Vite+ (`import { … } from "vite-plus/test"`, never `"vitest"`) + jsdom + React
+Testing Library, tests co-located with the code.
 
-`src/test/setup.ts` patches five gaps that otherwise fail *silently*: RTL auto-cleanup and the act
+`src/test/setup.ts` patches five gaps that otherwise fail _silently_: RTL auto-cleanup and the act
 environment (Vitest runs without `globals: true`), `matchMedia` (the stub tracks listeners and exports
 `colorScheme` so tests can flip the OS preference), `localStorage` (Node's own global has no methods
 and shadows jsdom's — `ThemeProvider`'s try/catch swallowed the `TypeError`, so persistence was never
 exercised), and `fetch` (rejects, so no test reaches the network). Storage, the OS preference and the
-`<html>` class are global, so `beforeEach` *reinstalls* rather than clears them.
+`<html>` class are global, so `beforeEach` _reinstalls_ rather than clears them.
 
 - jsdom reports `clientWidth: 0` and has no `ResizeObserver`, so anything measuring itself needs both
   stubbed; stubbing `ResizeObserver` alone achieves nothing, as the measurement bails at width 0. It
-  *does* resolve custom properties through `getComputedStyle` and respect `.dark`, but only after a
+  _does_ resolve custom properties through `getComputedStyle` and respect `.dark`, but only after a
   `<style>` is injected, since the real stylesheet never loads.
 - **An assertion behind a guard on its own subject must filter, not branch.**
   `for (link of links) if (target === "_blank") expect(rel)…` reads as coverage and is disabled by
   exactly the regression it exists to catch. Filter first, then assert the filtered set is non-empty.
-- **Which side a literal belongs on depends on what else exists.** When a *second real artifact*
+- **Which side a literal belongs on depends on what else exists.** When a _second real artifact_
   holds the value — `index.html`, `globals.css`, the PNG's IHDR — assert against that artifact, never
   against a hex or a number restated in the test. When the only alternative is the module under test,
   **spell the expectation out**: reading `profile.links` back off `profile.ts` passes for whatever
