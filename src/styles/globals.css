@@ -344,9 +344,11 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    /* biome-ignore-start lint/complexity/noImportantStyles: a global motion
-       kill-switch has to outrank the utility and inline declarations it is
-       overriding, which is the one case !important is the correct tool. */
+    /* A global motion kill-switch has to outrank the utility and inline
+       declarations it is overriding, which is the one case !important is the
+       correct tool. Biome's `noImportantStyles` used to be suppressed here;
+       oxlint does not lint CSS at all, so nothing objects any more — and
+       nothing would object to a careless one either. */
     *,
     *::before,
     *::after {
@@ -355,6 +357,5 @@
       scroll-behavior: auto !important;
       transition-duration: 0.01ms !important;
     }
-    /* biome-ignore-end lint/complexity/noImportantStyles: see above */
   }
 }

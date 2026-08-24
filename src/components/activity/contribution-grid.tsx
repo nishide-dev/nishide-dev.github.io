@@ -212,13 +212,18 @@ export function ContributionGrid({
   const [hovered, setHovered] = useState<Hovered>(null)
   const noise = useNoiseLayer(weeks === null)
 
-  /* Built as one object because biome's useAriaPropsSupportedByRole cannot see
-     that two ternaries share a condition: written as separate conditional
-     attributes it reads the div as label-without-role and flags it, even though
-     that combination is unreachable here. `aria-label` on the generic role
-     really is invalid, which is why the rule exists — this spread moves the pair
-     beyond its analysis rather than fixing a bug. Announced as an image only
-     once it *is* one: while
+  /* One object because `role` and `aria-label` have to travel together:
+     `aria-label` on the generic role is invalid, and the two ternaries share a
+     condition that only this shape makes obvious. It began as a workaround —
+     biome's `useAriaPropsSupportedByRole` could not see the shared condition and
+     flagged the separate-attribute form — and biome is gone. oxlint reports
+     nothing on the separate form even with `--jsx-a11y-plugin -D jsx-a11y`, so
+     there is no equivalent rule; note that simply seeing no diagnostic proves
+     nothing here, because oxlint's react and jsx-a11y plugins are off by
+     default, and that is exactly the mistake that made this project drop seven
+     `no-array-index-key` suppressions for a bad reason. Nothing enforces this
+     now; it stays because it reads better. Announced as an image only once it
+     *is* one: while
      `calendar` is null the cells are noise, and labelling noise with a
      contribution summary would state a number nothing measured, the same
      mistake as structured data that guesses. `GitHubActivity` announces the
@@ -256,7 +261,6 @@ export function ContributionGrid({
               className="flex flex-col gap-y-[3px]"
               // Weeks have no identity beyond their position, and the array is
               // rebuilt on every resize.
-              // biome-ignore lint/suspicious/noArrayIndexKey: see above
               key={column}
             >
               {(week ?? EMPTY_WEEK).map((day, row) => (
@@ -281,7 +285,6 @@ export function ContributionGrid({
                       : "bg-activity-0"
                   )}
                   // Same: a padding cell has no identity at all.
-                  // biome-ignore lint/suspicious/noArrayIndexKey: see above
                   key={row}
                   onMouseEnter={day ? () => setHovered(day) : undefined}
                   onMouseLeave={day ? () => setHovered(null) : undefined}
@@ -308,11 +311,7 @@ export function ContributionGrid({
             data-testid="activity-noise"
           >
             {columns.map((_, column) => (
-              <div
-                className="flex flex-col gap-y-[3px]"
-                // biome-ignore lint/suspicious/noArrayIndexKey: as above
-                key={column}
-              >
+              <div className="flex flex-col gap-y-[3px]" key={column}>
                 {EMPTY_WEEK.map((_, row) => {
                   const phase = cellPhase(column, row)
                   return (
@@ -327,7 +326,6 @@ export function ContributionGrid({
                         "animate-activity-noise bg-activity-0",
                         weeks ? "opacity-0" : "opacity-100"
                       )}
-                      // biome-ignore lint/suspicious/noArrayIndexKey: as above
                       key={row}
                       style={{
                         height: CELL,
@@ -359,7 +357,6 @@ export function ContributionGrid({
         {columns.map((_, column) => {
           const month = weeks ? monthLabel(weeks, column) : null
           return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: as above
             <span className="relative" key={column} style={{ width: CELL }}>
               {month && <span className="absolute top-0 left-0">{month}</span>}
             </span>

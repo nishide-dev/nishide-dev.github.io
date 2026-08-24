@@ -22,7 +22,7 @@ export function SiteHeader() {
           src={profile.avatar.src}
           width={24}
         />
-        <h1 className="truncate font-medium text-name">{profile.name}</h1>
+        <h1 className="truncate text-name font-medium">{profile.name}</h1>
       </div>
 
       <ThemeToggle />

@@ -86,7 +86,7 @@ export function TimelineItem({ event, label, repeatsDate }: TimelineItemProps) {
           </time>
         )}
 
-        <h3 className="font-medium text-title">{event.title}</h3>
+        <h3 className="text-title font-medium">{event.title}</h3>
 
         {event.description && (
           <p className="mt-1.5 text-body text-muted-foreground">
@@ -103,7 +103,6 @@ export function TimelineItem({ event, label, repeatsDate }: TimelineItemProps) {
                 // reordered, and two award citations can legitimately read the
                 // same. Keying by content drops the second one in production,
                 // where React's duplicate-key warning is stripped.
-                // biome-ignore lint/suspicious/noArrayIndexKey: see above
                 key={index}
               >
                 {detail}
@@ -118,7 +117,6 @@ export function TimelineItem({ event, label, repeatsDate }: TimelineItemProps) {
               <li
                 // As above: an abstract and a PDF can legitimately share one
                 // href, and keying by it would drop the second link.
-                // biome-ignore lint/suspicious/noArrayIndexKey: see above
                 key={index}
               >
                 <ExternalLink href={link.href} label={link.label} />

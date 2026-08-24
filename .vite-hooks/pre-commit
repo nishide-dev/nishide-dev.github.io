@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# The project-owned half of the hook. `vp hooks enable` only installs the
+# dispatcher under `.vite-hooks/_`, and that dispatcher does
+# `[ ! -f .vite-hooks/pre-commit ] && exit 0` — so without this file there is no
+# hook at all, in any checkout. This file is committed on purpose; only `_/` is
+# ignored.
+#
+# `vp staged` runs the globs in `vite.config.ts`'s `staged` block against the
+# staged files. Formatting only: CI is the gate, and a hook that fails a commit
+# on a lint finding is a hook people disable.
+vp staged

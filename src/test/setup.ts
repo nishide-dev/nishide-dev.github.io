@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup } from "@testing-library/react"
-import { afterEach, beforeEach, vi } from "vitest"
+import { afterEach, beforeEach, vi } from "vite-plus/test"
 
 // React Testing Library auto-configures itself only when `beforeAll`/`afterAll`
 // are globals, and vite.config.ts does not set `globals: true`. Two things are
